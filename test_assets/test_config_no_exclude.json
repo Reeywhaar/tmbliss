@@ -1,0 +1,4 @@
+{
+  "paths": ["./test_assets/test_dir"],
+  "dry_run": true
+}
