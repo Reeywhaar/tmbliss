@@ -9,7 +9,7 @@
 		<string>/usr/local/bin/tmbliss</string>
 		<string>conf</string>
 		<string>--path</string>
-		<string>/usr/local/etc/tmbliss.conf.json</string>
+		<string>{prefix}/etc/tmbliss.conf.json</string>
 	</array>
 	<key>StartCalendarInterval</key>
 	<dict>

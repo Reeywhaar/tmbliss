@@ -95,7 +95,17 @@ jobs:
       - uses: actions/download-artifact@v3
         with:
           path: ~/artifacts
-      - run: mv ~/artifacts/**/* ./
+      - name: Move artifacts
+        run: mv ~/artifacts/**/* ./
+      - name: Create homebrew package
+        run: |
+          unzip silicon.zip && \
+          unzip intel.zip && \
+          mkdir homebrew && \
+          mv silicon homebrew/ && \
+          mv intel homebrew/ && \
+          mv homebrew.tmbliss.plist homebrew/ && \
+          zip -qq -r homebrew.zip homebrew
       - name: "Create Release"
         uses: softprops/action-gh-release@78c309ef59fdb9557cd6574f2e0be552936ed728
         env:
@@ -104,3 +114,4 @@ jobs:
           files: |
             silicon.zip
             intel.zip
+            homebrew.zip
