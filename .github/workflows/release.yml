@@ -60,7 +60,7 @@ jobs:
           command: build
           args: --release --all-features --target ${{ matrix.toolchain.arch }}
 
-      - name: create signed binary
+      - name: Create signed binary
         run: |
           mv target/${{ matrix.toolchain.arch }}/release/tmbliss ./tmbliss
           codesign -s "$SIGNING_IDENTITY" --deep -v -f -o runtime ./tmbliss
