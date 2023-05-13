@@ -19,23 +19,23 @@ pub enum Command {
         #[arg(long, default_value = "false")]
         dry_run: bool,
 
-        /// Force include file globs into backup. [--whitelist-glob ... --whitelist-glob ...]
+        /// Force include file globs into backup. [--allowlist-glob ... --allowlist-glob ...]
         #[arg(long)]
-        whitelist_glob: Vec<String>,
+        allowlist_glob: Vec<String>,
 
-        /// Force include file paths into backup. [--whitelist-path ./1 --whitelist-path ./2]
+        /// Force include file paths into backup. [--allowlist-path ./1 --allowlist-path ./2]
         #[arg(long)]
-        whitelist_path: Vec<String>,
+        allowlist_path: Vec<String>,
 
         /// Skip file globs from checking.
-        /// Difference with whitelist is that if condition
+        /// Difference with allowlist is that if condition
         /// met than program wont do processing for child directories
         /// [--skip-glob ... --skip-glob ...]
         #[arg(long)]
         skip_glob: Vec<String>,
 
         /// Skip file paths from checking.
-        /// Difference with whitelist is that if condition
+        /// Difference with allowlist is that if condition
         /// met than program wont do processing for child directories
         /// [--skip-path ./1 --skip-path ./2]
         #[arg(long)]
@@ -48,23 +48,23 @@ pub enum Command {
         #[arg(long)]
         path: Vec<String>,
 
-        /// Force include file globs into backup. [--whitelist-glob ... --whitelist-glob ...]
+        /// Force include file globs into backup. [--allowlist-glob ... --allowlist-glob ...]
         #[arg(long)]
-        whitelist_glob: Vec<String>,
+        allowlist_glob: Vec<String>,
 
-        /// Force include file paths into backup. [--whitelist-path ./1 --whitelist-path ./2]
+        /// Force include file paths into backup. [--allowlist-path ./1 --allowlist-path ./2]
         #[arg(long)]
-        whitelist_path: Vec<String>,
+        allowlist_path: Vec<String>,
 
         /// Skip file globs from checking.
-        /// Difference with whitelist is that if condition
+        /// Difference with allowlist is that if condition
         /// met than program won't do processing for child directories
         /// [--skip-glob ... --skip-glob ...]
         #[arg(long)]
         skip_glob: Vec<String>,
 
         /// Skip file paths from checking.
-        /// Difference with whitelist is that if condition
+        /// Difference with allowlist is that if condition
         /// met than program won't do processing for child directories
         /// [--skip-path ./1 --skip-path ./2]
         #[arg(long)]
@@ -87,13 +87,13 @@ pub enum Command {
         #[arg(long, default_value = "false")]
         dry_run: bool,
 
-        /// Skip reset for glob matched files. [--whitelist-glob ... --whitelist-glob ...]
+        /// Skip reset for glob matched files. [--allowlist-glob ... --allowlist-glob ...]
         #[arg(long)]
-        whitelist_glob: Vec<String>,
+        allowlist_glob: Vec<String>,
 
-        /// Skip reset for matched paths.  [--whitelist-path ./1 --whitelist-path ./2]
+        /// Skip reset for matched paths.  [--allowlist-path ./1 --allowlist-path ./2]
         #[arg(long)]
-        whitelist_path: Vec<String>,
+        allowlist_path: Vec<String>,
     },
     /// Show excluded files starting from given directory: Alias for 'reset --dry-run'
     ShowExcluded {
@@ -101,13 +101,13 @@ pub enum Command {
         #[arg(long)]
         path: String,
 
-        /// Skip reset for glob matched files. [--whitelist-glob ... --whitelist-glob ...]
+        /// Skip reset for glob matched files. [--allowlist-glob ... --allowlist-glob ...]
         #[arg(long)]
-        whitelist_glob: Vec<String>,
+        allowlist_glob: Vec<String>,
 
-        /// Skip reset for matched paths.  [--whitelist-path ./1 --whitelist-path ./2]
+        /// Skip reset for matched paths.  [--allowlist-path ./1 --allowlist-path ./2]
         #[arg(long)]
-        whitelist_path: Vec<String>,
+        allowlist_path: Vec<String>,
     },
     /// Generate markdown help
     MarkdownHelp,
@@ -126,8 +126,8 @@ mod tests {
             Command::Run {
                 path: [String::from("./1"), String::from("./2")].to_vec(),
                 dry_run: false,
-                whitelist_glob: vec![],
-                whitelist_path: vec![],
+                allowlist_glob: vec![],
+                allowlist_path: vec![],
                 skip_glob: vec![],
                 skip_path: vec![],
             }
@@ -142,9 +142,9 @@ mod tests {
             "--path",
             "./",
             "--dry-run",
-            "--whitelist-glob",
+            "--allowlist-glob",
             ".env",
-            "--whitelist-glob",
+            "--allowlist-glob",
             ".env.*",
         ]);
         assert_eq!(
@@ -152,8 +152,8 @@ mod tests {
             Command::Run {
                 path: [String::from("./")].to_vec(),
                 dry_run: true,
-                whitelist_glob: vec![String::from(".env"), String::from(".env.*")],
-                whitelist_path: vec![],
+                allowlist_glob: vec![String::from(".env"), String::from(".env.*")],
+                allowlist_path: vec![],
                 skip_glob: vec![],
                 skip_path: vec![],
             }
@@ -161,16 +161,16 @@ mod tests {
     }
 
     #[test]
-    fn it_parses_whitelist_paths() {
+    fn it_parses_allowlist_paths() {
         let args = Args::parse_from([
             "tmbliss",
             "run",
             "--path",
             "./",
             "--dry-run",
-            "--whitelist-path",
+            "--allowlist-path",
             "./1",
-            "--whitelist-path",
+            "--allowlist-path",
             "./2",
         ]);
         assert_eq!(
@@ -178,8 +178,8 @@ mod tests {
             Command::Run {
                 path: [String::from("./")].to_vec(),
                 dry_run: true,
-                whitelist_glob: vec![],
-                whitelist_path: vec![String::from("./1"), String::from("./2")],
+                allowlist_glob: vec![],
+                allowlist_path: vec![String::from("./1"), String::from("./2")],
                 skip_glob: vec![],
                 skip_path: vec![],
             }

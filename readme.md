@@ -19,7 +19,7 @@ Or by manually downloading archive from [releases](./releases/latest) page. `sil
 To show which files would be excluded from given directory you can run:
 
 ```
-tmbliss --path ~/Dev --whitelist-glob "**/.env" --dry-run
+tmbliss --path ~/Dev --allowlist-glob "**/.env" --dry-run
 ```
 
 Every option can be seen in [Cli Documentation](./cli.md)

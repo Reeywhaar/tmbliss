@@ -31,29 +31,29 @@ impl TMBliss {
             Command::Run {
                 path,
                 dry_run,
-                whitelist_glob,
-                whitelist_path,
+                allowlist_glob,
+                allowlist_path,
                 skip_glob,
                 skip_path,
             } => Self::mark_files(Conf {
                 paths: path,
                 dry_run,
-                whitelist_glob,
-                whitelist_path,
+                allowlist_glob,
+                allowlist_path,
                 skip_glob,
                 skip_path,
             }),
             Command::List {
                 path,
-                whitelist_glob,
-                whitelist_path,
+                allowlist_glob,
+                allowlist_path,
                 skip_glob,
                 skip_path,
             } => Self::mark_files(Conf {
                 paths: path,
                 dry_run: true,
-                whitelist_glob,
-                whitelist_path,
+                allowlist_glob,
+                allowlist_path,
                 skip_glob,
                 skip_path,
             }),
@@ -67,14 +67,14 @@ impl TMBliss {
             Command::Reset {
                 path,
                 dry_run,
-                whitelist_glob,
-                whitelist_path,
-            } => Self::reset_files(&path, dry_run, whitelist_glob, whitelist_path),
+                allowlist_glob,
+                allowlist_path,
+            } => Self::reset_files(&path, dry_run, allowlist_glob, allowlist_path),
             Command::ShowExcluded {
                 path,
-                whitelist_glob,
-                whitelist_path,
-            } => Self::reset_files(&path, true, whitelist_glob, whitelist_path),
+                allowlist_glob,
+                allowlist_path,
+            } => Self::reset_files(&path, true, allowlist_glob, allowlist_path),
             Command::MarkdownHelp {} => {
                 clap_markdown::print_help_markdown::<Args>();
                 Ok(())
@@ -123,18 +123,18 @@ impl TMBliss {
     fn reset_files(
         path: &str,
         dry_run: bool,
-        whitelist_glob: Vec<String>,
-        whitelist_path: Vec<String>,
+        allowlist_glob: Vec<String>,
+        allowlist_path: Vec<String>,
     ) -> Result<()> {
         let iterator = RecursiveDirectoryIterator {
             path: path.to_string(),
             op: &|path| {
-                for exclusion in &whitelist_path {
+                for exclusion in &allowlist_path {
                     if Self::is_inside(exclusion, path) {
                         return Ok(());
                     }
                 }
-                for exclusion in &whitelist_glob {
+                for exclusion in &allowlist_glob {
                     if glob_match(exclusion, path) {
                         return Ok(());
                     }
@@ -170,12 +170,12 @@ impl TMBliss {
                         return false;
                     }
                 }
-                for exclusion in &conf.whitelist_path {
+                for exclusion in &conf.allowlist_path {
                     if Self::is_inside(exclusion, item) {
                         return false;
                     }
                 }
-                for exclusion in &conf.whitelist_glob {
+                for exclusion in &conf.allowlist_glob {
                     if glob_match(exclusion, item) {
                         return false;
                     }

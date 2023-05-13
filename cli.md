@@ -39,10 +39,10 @@ Runs command in given directory and marks files as excluded from backup
 * `--dry-run` — Dry run. Only show list of files that would be excluded
 
   Default value: `false`
-* `--whitelist-glob <WHITELIST_GLOB>` — Force include file globs into backup. [--whitelist-glob ... --whitelist-glob ...]
-* `--whitelist-path <WHITELIST_PATH>` — Force include file paths into backup. [--whitelist-path ./1 --whitelist-path ./2]
-* `--skip-glob <SKIP_GLOB>` — Skip file globs from checking. Difference with whitelist is that if condition met than program wont do processing for child directories [--skip-glob ... --skip-glob ...]
-* `--skip-path <SKIP_PATH>` — Skip file paths from checking. Difference with whitelist is that if condition met than program wont do processing for child directories [--skip-path ./1 --skip-path ./2]
+* `--allowlist-glob <ALLOWLIST_GLOB>` — Force include file globs into backup. [--allowlist-glob ... --allowlist-glob ...]
+* `--allowlist-path <ALLOWLIST_PATH>` — Force include file paths into backup. [--allowlist-path ./1 --allowlist-path ./2]
+* `--skip-glob <SKIP_GLOB>` — Skip file globs from checking. Difference with allowlist is that if condition met than program wont do processing for child directories [--skip-glob ... --skip-glob ...]
+* `--skip-path <SKIP_PATH>` — Skip file paths from checking. Difference with allowlist is that if condition met than program wont do processing for child directories [--skip-path ./1 --skip-path ./2]
 
 
 
@@ -55,10 +55,10 @@ Runs command in given directory and shows files which would be excluded from bac
 ###### **Options:**
 
 * `--path <PATH>` — Directory paths to run the command in. [--path ... --path ...]
-* `--whitelist-glob <WHITELIST_GLOB>` — Force include file globs into backup. [--whitelist-glob ... --whitelist-glob ...]
-* `--whitelist-path <WHITELIST_PATH>` — Force include file paths into backup. [--whitelist-path ./1 --whitelist-path ./2]
-* `--skip-glob <SKIP_GLOB>` — Skip file globs from checking. Difference with whitelist is that if condition met than program won't do processing for child directories [--skip-glob ... --skip-glob ...]
-* `--skip-path <SKIP_PATH>` — Skip file paths from checking. Difference with whitelist is that if condition met than program won't do processing for child directories [--skip-path ./1 --skip-path ./2]
+* `--allowlist-glob <ALLOWLIST_GLOB>` — Force include file globs into backup. [--allowlist-glob ... --allowlist-glob ...]
+* `--allowlist-path <ALLOWLIST_PATH>` — Force include file paths into backup. [--allowlist-path ./1 --allowlist-path ./2]
+* `--skip-glob <SKIP_GLOB>` — Skip file globs from checking. Difference with allowlist is that if condition met than program won't do processing for child directories [--skip-glob ... --skip-glob ...]
+* `--skip-path <SKIP_PATH>` — Skip file paths from checking. Difference with allowlist is that if condition met than program won't do processing for child directories [--skip-path ./1 --skip-path ./2]
 
 
 
@@ -86,8 +86,8 @@ Reset all exclusions in given directory
 * `--dry-run` — Dry run. Only show list of files that would be reset
 
   Default value: `false`
-* `--whitelist-glob <WHITELIST_GLOB>` — Skip reset for glob matched files. [--whitelist-glob ... --whitelist-glob ...]
-* `--whitelist-path <WHITELIST_PATH>` — Skip reset for matched paths.  [--whitelist-path ./1 --whitelist-path ./2]
+* `--allowlist-glob <ALLOWLIST_GLOB>` — Skip reset for glob matched files. [--allowlist-glob ... --allowlist-glob ...]
+* `--allowlist-path <ALLOWLIST_PATH>` — Skip reset for matched paths.  [--allowlist-path ./1 --allowlist-path ./2]
 
 
 
@@ -100,8 +100,8 @@ Show excluded files starting from given directory: Alias for 'reset --dry-run'
 ###### **Options:**
 
 * `--path <PATH>` — Directory path
-* `--whitelist-glob <WHITELIST_GLOB>` — Skip reset for glob matched files. [--whitelist-glob ... --whitelist-glob ...]
-* `--whitelist-path <WHITELIST_PATH>` — Skip reset for matched paths.  [--whitelist-path ./1 --whitelist-path ./2]
+* `--allowlist-glob <ALLOWLIST_GLOB>` — Skip reset for glob matched files. [--allowlist-glob ... --allowlist-glob ...]
+* `--allowlist-path <ALLOWLIST_PATH>` — Skip reset for matched paths.  [--allowlist-path ./1 --allowlist-path ./2]
 
 
 

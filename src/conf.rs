@@ -8,10 +8,10 @@ pub struct Conf {
     pub paths: Vec<String>,
 
     #[serde(default)]
-    pub whitelist_glob: Vec<String>,
+    pub allowlist_glob: Vec<String>,
 
     #[serde(default)]
-    pub whitelist_path: Vec<String>,
+    pub allowlist_path: Vec<String>,
 
     #[serde(default)]
     pub skip_glob: Vec<String>,
@@ -27,8 +27,8 @@ impl Default for Conf {
     fn default() -> Self {
         Self {
             paths: Vec::new(),
-            whitelist_glob: Vec::new(),
-            whitelist_path: Vec::new(),
+            allowlist_glob: Vec::new(),
+            allowlist_path: Vec::new(),
             skip_glob: Vec::new(),
             skip_path: Vec::new(),
             dry_run: true,
@@ -52,8 +52,8 @@ mod tests {
         let conf = super::Conf::parse("./test_assets/test_config.json").unwrap();
 
         assert_eq!(conf.paths, ["./test_assets/test_dir"]);
-        assert_eq!(conf.whitelist_glob.len(), 2);
-        assert_eq!(conf.whitelist_glob, ["**/.env", "**/.env.*"]);
+        assert_eq!(conf.allowlist_glob.len(), 2);
+        assert_eq!(conf.allowlist_glob, ["**/.env", "**/.env.*"]);
         assert!(conf.dry_run);
     }
 
@@ -69,7 +69,7 @@ mod tests {
         let conf = super::Conf::parse("./test_assets/test_config_no_exclude.json").unwrap();
 
         assert_eq!(conf.paths, ["./test_assets/test_dir"]);
-        assert_eq!(conf.whitelist_glob.len(), 0);
+        assert_eq!(conf.allowlist_glob.len(), 0);
         assert!(conf.dry_run);
     }
 }

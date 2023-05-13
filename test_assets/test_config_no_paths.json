@@ -1,4 +1,4 @@
 {
-  "whitelist_path": ["./test_assets/test_dir"],
+  "allowlist_path": ["./test_assets/test_dir"],
   "dry_run": true
 }

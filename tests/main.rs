@@ -29,11 +29,11 @@ fn test_run() {
     let command = Command::Run {
         path: [dir].to_vec(),
         dry_run: false,
-        whitelist_glob: vec![
+        allowlist_glob: vec![
             "**/.excluded_glob".to_string(),
             ".excluded_glob.*".to_string(),
         ],
-        whitelist_path: vec![not_excluded_dir.clone()],
+        allowlist_path: vec![not_excluded_dir.clone()],
         skip_glob: vec![],
         skip_path: vec![],
     };
@@ -64,8 +64,8 @@ fn test_reset() {
     TMBliss::run(Command::Run {
         path: [dir.clone()].to_vec(),
         dry_run: false,
-        whitelist_glob: vec![],
-        whitelist_path: vec![],
+        allowlist_glob: vec![],
+        allowlist_path: vec![],
         skip_glob: vec![],
         skip_path: vec![],
     })
@@ -78,8 +78,8 @@ fn test_reset() {
     TMBliss::run(Command::Reset {
         path: dir,
         dry_run: false,
-        whitelist_glob: vec!["**/.excluded_glob".to_string()],
-        whitelist_path: vec![not_excluded_path.clone()],
+        allowlist_glob: vec!["**/.excluded_glob".to_string()],
+        allowlist_path: vec![not_excluded_path.clone()],
     })
     .unwrap();
 
