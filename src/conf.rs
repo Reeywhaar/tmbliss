@@ -38,7 +38,8 @@ impl Default for Conf {
 
 impl Conf {
     pub fn parse(path: &str) -> Result<Self> {
-        let file = File::open(path)?;
+        let file =
+            File::open(path).with_context(|| format!("Cannot open configuration at {}", path))?;
         let reader = BufReader::new(file);
         serde_json::from_reader(reader)
             .with_context(|| format!("Cannot create reader for path {}", path))
