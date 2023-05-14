@@ -81,6 +81,18 @@ pub enum Command {
         #[arg(long)]
         dry_run: Option<bool>,
     },
+
+    /// Same as 'conf' but with logging suitable for a service
+    Service {
+        /// Configuration file path
+        #[arg(long)]
+        path: String,
+
+        /// Dry run. Overrides configuration file option
+        #[arg(long)]
+        dry_run: Option<bool>,
+    },
+
     /// Reset all exclusions in given directory
     Reset {
         /// Directory path

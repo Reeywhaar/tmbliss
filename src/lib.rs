@@ -5,6 +5,7 @@ mod args;
 mod conf;
 mod directory_iterator;
 mod git;
+mod logger;
 mod recursive_directory_iterator;
 mod time_machine;
 
@@ -21,6 +22,7 @@ pub use crate::args::{Args, Command};
 use crate::conf::Conf;
 use crate::directory_iterator::DirectoryIterator;
 use crate::git::Git;
+use crate::logger::Logger;
 pub use crate::time_machine::TimeMachine;
 
 pub struct TMBliss {}
@@ -35,36 +37,75 @@ impl TMBliss {
                 allowlist_path,
                 skip_glob,
                 skip_path,
-            } => Self::mark_files(Conf {
-                paths: path,
-                dry_run,
-                allowlist_glob,
-                allowlist_path,
-                skip_glob,
-                skip_path,
-            }),
+            } => {
+                let logger = Logger { filter: None };
+
+                Self::mark_files(
+                    Conf {
+                        paths: path,
+                        dry_run,
+                        allowlist_glob,
+                        allowlist_path,
+                        skip_glob,
+                        skip_path,
+                    },
+                    &logger,
+                )
+            }
             Command::List {
                 path,
                 allowlist_glob,
                 allowlist_path,
                 skip_glob,
                 skip_path,
-            } => Self::mark_files(Conf {
-                paths: path,
-                dry_run: true,
-                allowlist_glob,
-                allowlist_path,
-                skip_glob,
-                skip_path,
-            }),
+            } => {
+                let logger = Logger { filter: None };
+
+                Self::mark_files(
+                    Conf {
+                        paths: path,
+                        dry_run: true,
+                        allowlist_glob,
+                        allowlist_path,
+                        skip_glob,
+                        skip_path,
+                    },
+                    &logger,
+                )
+            }
             Command::Conf { path, dry_run } => {
                 let conf = Conf::parse(&path);
                 match conf {
                     Ok(mut conf) => {
+                        let logger = Logger { filter: None };
+
                         if let Some(dry_run) = dry_run {
                             conf.dry_run = dry_run;
                         }
-                        Self::mark_files(conf)
+                        Self::mark_files(conf, &logger)
+                    }
+                    Err(e) => Err(e),
+                }
+            }
+            Command::Service { path, dry_run } => {
+                let conf = Conf::parse(&path);
+                match conf {
+                    Ok(mut conf) => {
+                        let filter = |label: &str, _message: &str| {
+                            if label == "excluded" {
+                                return true;
+                            }
+                            false
+                        };
+                        let logger = Logger {
+                            filter: Some(&filter),
+                        };
+                        if let Some(dry_run) = dry_run {
+                            conf.dry_run = dry_run;
+                        }
+                        logger.log("started", &chrono::Local::now().to_string());
+                        logger.log("dry run", &conf.dry_run.to_string());
+                        Self::mark_files(conf, &logger)
                     }
                     Err(e) => Err(e),
                 }
@@ -74,12 +115,24 @@ impl TMBliss {
                 dry_run,
                 allowlist_glob,
                 allowlist_path,
-            } => Self::reset_files(&path, dry_run, allowlist_glob, allowlist_path),
+            } => Self::reset_files(
+                &path,
+                dry_run,
+                allowlist_glob,
+                allowlist_path,
+                &Logger { filter: None },
+            ),
             Command::ShowExcluded {
                 path,
                 allowlist_glob,
                 allowlist_path,
-            } => Self::reset_files(&path, true, allowlist_glob, allowlist_path),
+            } => Self::reset_files(
+                &path,
+                true,
+                allowlist_glob,
+                allowlist_path,
+                &Logger { filter: None },
+            ),
             Command::MarkdownHelp {} => {
                 clap_markdown::print_help_markdown::<Args>();
                 Ok(())
@@ -87,7 +140,7 @@ impl TMBliss {
         }
     }
 
-    fn mark_files(conf: Conf) -> Result<()> {
+    fn mark_files(conf: Conf, logger: &Logger) -> Result<()> {
         let processed: Rc<RefCell<HashSet<String>>> = Rc::new(RefCell::new(HashSet::new()));
 
         let excluder = |path: &str| -> bool {
@@ -118,7 +171,7 @@ impl TMBliss {
         };
 
         for path in &conf.paths {
-            Self::process_directory(path, &conf, Some(&excluder), processed.clone())
+            Self::process_directory(path, &conf, Some(&excluder), processed.clone(), logger)
                 .with_context(|| format!("Can't process directory {}", path))?;
         }
 
@@ -130,6 +183,7 @@ impl TMBliss {
         dry_run: bool,
         allowlist_glob: Vec<String>,
         allowlist_path: Vec<String>,
+        logger: &Logger,
     ) -> Result<()> {
         let iterator = RecursiveDirectoryIterator {
             path: path.to_string(),
@@ -145,7 +199,7 @@ impl TMBliss {
                     }
                 }
                 if TimeMachine::is_excluded(path) {
-                    println!("{}", path);
+                    logger.log("excluded", path);
                     if !dry_run {
                         TimeMachine::remove_exclusion(path)?
                     }
@@ -194,6 +248,7 @@ impl TMBliss {
         items: Vec<String>,
         conf: &Conf,
         processed: Rc<RefCell<HashSet<String>>>,
+        logger: &Logger,
     ) -> Result<()> {
         for item in items {
             if processed.borrow().contains(&item) {
@@ -203,9 +258,9 @@ impl TMBliss {
             processed.borrow_mut().insert(item.clone());
 
             if TimeMachine::is_excluded(&item) {
-                println!("excluded: {}", item);
+                logger.log("excluded", &item);
             } else {
-                println!("new: {}", item);
+                logger.log("new", &item);
             }
 
             if !conf.dry_run {
@@ -232,6 +287,7 @@ impl TMBliss {
         conf: &Conf,
         excluder: Option<&dyn Fn(&str) -> bool>,
         processed: Rc<RefCell<HashSet<String>>>,
+        logger: &Logger,
     ) -> Result<()> {
         if let Some(excluder) = excluder {
             if excluder(path) {
@@ -249,6 +305,7 @@ impl TMBliss {
                     .to_string()],
                 conf,
                 processed,
+                logger,
             )
             .with_context(|| format!("Can't process path {}", path))?;
             return Ok(());
@@ -256,7 +313,7 @@ impl TMBliss {
 
         let excludes = Self::get_git_excludes(path, conf);
 
-        Self::process(excludes.clone(), conf, processed.clone())
+        Self::process(excludes.clone(), conf, processed.clone(), logger)
             .with_context(|| format!("Can't process paths {}", excludes.join(", ")))?;
 
         let directory_iterator = DirectoryIterator {
@@ -268,7 +325,7 @@ impl TMBliss {
             .with_context(|| format!("Can't list directory {}", path))?;
 
         for path in directories {
-            Self::process_directory(&path, conf, excluder, processed.clone())
+            Self::process_directory(&path, conf, excluder, processed.clone(), logger)
                 .with_context(|| format!("Can't process directory {}", path))?;
         }
 
