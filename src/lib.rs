@@ -203,7 +203,7 @@ impl TMBliss {
             processed.borrow_mut().insert(item.clone());
 
             if TimeMachine::is_excluded(&item) {
-                println!("{}", item);
+                println!("excluded: {}", item);
             } else {
                 println!("new: {}", item);
             }
