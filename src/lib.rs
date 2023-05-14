@@ -105,7 +105,9 @@ impl TMBliss {
                         }
                         logger.log("started", &chrono::Local::now().to_string());
                         logger.log("dry run", &conf.dry_run.to_string());
-                        Self::mark_files(conf, &logger)
+                        Self::mark_files(conf, &logger)?;
+                        logger.log("ended", &chrono::Local::now().to_string());
+                        Ok(())
                     }
                     Err(e) => Err(e),
                 }
