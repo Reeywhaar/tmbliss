@@ -121,31 +121,28 @@ jobs:
     needs: release
     steps:
       - uses: actions/checkout@v2
-        with:
-          path: tmbliss
-      - uses: actions/checkout@v2
-        with:
-          ref: main
-          path: tap
-          repository: "reeywhaar/homebrew-tap"
-          token: ${{ secrets.TAP_REPO_TOKEN }}
       - name: Set version
         run: |
           cat Cargo.toml | grep -o 'version = ".*"' | head -n 1 | cut -c 12- | rev | cut -c2- | rev > version.txt
-          echo "TMBLISS_VERSION=$(cat version.txt)" >> $GITHUB_ENV
-        working-directory: tmbliss
-      - name: Link formula
-        run: |
-          mkdir -p $(brew --repository)/Library/Taps/reeywhaar && \
-          ln -sf $(pwd) $(brew --repository)/Library/Taps/reeywhaar/homebrew-tap
-        working-directory: tap
+          echo "TMBLISS_VERSION=$(cat version.txt)" >> $GITHUB_ENV && \
+          echo "BREW_ROOT=$(brew --repository)" >> $GITHUB_ENV
+      - name: Setup git credentials
+        run: git config --global url.https://${{ secrets.TAP_REPO_TOKEN }}@github.com/.insteadOf https://github.com/
+      - name: Brew bundle cache
+        id: brew-bundle-cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ env.BREW_ROOT }}/Library/Homebrew/vendor/bundle
+          key: ${{ runner.os }}-brew-bundle
+      - name: Add tap
+        run: brew tap reeywhaar/tap
       - name: Bump Formula
         run: brew bump-formula-pr reeywhaar/tap/tmbliss --write-only --commit --no-audit --url=https://github.com/Reeywhaar/tmbliss/releases/download/v$TMBLISS_VERSION/homebrew.zip --version=$TMBLISS_VERSION
-        working-directory: tap
+        working-directory: ${{ env.BREW_ROOT }}/Library/Taps/reeywhaar/homebrew-tap
         env:
           HOMEBREW_GITHUB_API_TOKEN: ${{ secrets.TAP_REPO_TOKEN }}
       - name: Push changes
         run: git push origin main
-        working-directory: tap
+        working-directory: ${{ env.BREW_ROOT }}/Library/Taps/reeywhaar/homebrew-tap
         env:
           HOMEBREW_GITHUB_API_TOKEN: ${{ secrets.TAP_REPO_TOKEN }}
