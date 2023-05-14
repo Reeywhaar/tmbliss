@@ -197,9 +197,9 @@ impl TMBliss {
 
             processed.borrow_mut().insert(item.clone());
 
-            if conf.dry_run {
-                println!("{}", item);
-            } else {
+            println!("{}", item);
+
+            if !conf.dry_run {
                 TimeMachine::add_exclusion(&item)?;
             }
         }
