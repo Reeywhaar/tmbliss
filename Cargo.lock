@@ -353,7 +353,7 @@ dependencies = [
 
 [[package]]
 name = "tmbliss"
-version = "0.0.1-beta.6"
+version = "0.0.1-beta.7"
 dependencies = [
  "anyhow",
  "clap",
