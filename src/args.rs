@@ -76,6 +76,10 @@ pub enum Command {
         /// Configuration file path
         #[arg(long)]
         path: String,
+
+        /// Dry run. Overrides configuration file option
+        #[arg(long)]
+        dry_run: Option<bool>,
     },
     /// Reset all exclusions in given directory
     Reset {
@@ -184,5 +188,34 @@ mod tests {
                 skip_path: vec![],
             }
         );
+    }
+
+    #[test]
+    fn it_overrides_dry_run_in_conf_mode() {
+        let args = Args::parse_from(["tmbliss", "conf", "--path", "./conf.json"]);
+        assert_eq!(
+            args.command,
+            Command::Conf {
+                path: "./conf.json".to_string(),
+                dry_run: None
+            }
+        );
+        {
+            let args = Args::parse_from([
+                "tmbliss",
+                "conf",
+                "--path",
+                "./conf.json",
+                "--dry-run",
+                "true",
+            ]);
+            assert_eq!(
+                args.command,
+                Command::Conf {
+                    path: "./conf.json".to_string(),
+                    dry_run: Some(true)
+                }
+            );
+        }
     }
 }

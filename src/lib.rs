@@ -57,10 +57,15 @@ impl TMBliss {
                 skip_glob,
                 skip_path,
             }),
-            Command::Conf { path } => {
+            Command::Conf { path, dry_run } => {
                 let conf = Conf::parse(&path);
                 match conf {
-                    Ok(conf) => Self::mark_files(conf),
+                    Ok(mut conf) => {
+                        if let Some(dry_run) = dry_run {
+                            conf.dry_run = dry_run;
+                        }
+                        Self::mark_files(conf)
+                    }
                     Err(e) => Err(e),
                 }
             }
