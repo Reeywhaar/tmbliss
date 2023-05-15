@@ -40,9 +40,9 @@ fn test_run() {
     let result = TMBliss::run(command);
 
     assert!(result.is_ok());
-    assert!(TimeMachine::is_excluded(&excluded_path));
-    assert!(!TimeMachine::is_excluded(&not_excluded_glob));
-    assert!(!TimeMachine::is_excluded(&not_excluded_dir));
+    assert!(TimeMachine::is_excluded(&excluded_path).unwrap());
+    assert!(!TimeMachine::is_excluded(&not_excluded_glob).unwrap());
+    assert!(!TimeMachine::is_excluded(&not_excluded_dir).unwrap());
 }
 
 #[test]
@@ -71,9 +71,9 @@ fn test_reset() {
     })
     .unwrap();
 
-    assert!(TimeMachine::is_excluded(&excluded_path));
-    assert!(TimeMachine::is_excluded(&not_excluded_glob));
-    assert!(TimeMachine::is_excluded(&not_excluded_path));
+    assert!(TimeMachine::is_excluded(&excluded_path).unwrap());
+    assert!(TimeMachine::is_excluded(&not_excluded_glob).unwrap());
+    assert!(TimeMachine::is_excluded(&not_excluded_path).unwrap());
 
     TMBliss::run(Command::Reset {
         path: dir,
@@ -83,7 +83,7 @@ fn test_reset() {
     })
     .unwrap();
 
-    assert!(!TimeMachine::is_excluded(&excluded_path));
-    assert!(TimeMachine::is_excluded(&not_excluded_glob));
-    assert!(TimeMachine::is_excluded(&not_excluded_path));
+    assert!(!TimeMachine::is_excluded(&excluded_path).unwrap());
+    assert!(TimeMachine::is_excluded(&not_excluded_glob).unwrap());
+    assert!(TimeMachine::is_excluded(&not_excluded_path).unwrap());
 }

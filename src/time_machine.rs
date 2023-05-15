@@ -1,6 +1,6 @@
 use std::{error::Error, fmt::Display, process::Command};
 
-use anyhow::Result;
+use anyhow::{anyhow, Context, Result};
 use regex::Regex;
 
 pub struct TimeMachine {}
@@ -44,16 +44,20 @@ impl TimeMachine {
         Ok(())
     }
 
-    pub fn is_excluded(path: &str) -> bool {
-        let result = Command::new("/usr/bin/xattr").arg(path).output().unwrap();
+    pub fn is_excluded(path: &str) -> Result<bool> {
+        let result = Command::new("/usr/bin/xattr").arg(path).output()?;
+
+        if !result.status.success() {
+            return Err(anyhow!(String::from_utf8_lossy(&result.stderr).to_string()));
+        }
 
         let attrs: Vec<String> = String::from_utf8(result.stdout)
-            .unwrap()
+            .with_context(|| "Cannot convert output to string")?
             .lines()
             .map(String::from)
             .collect();
 
-        attrs.contains(&"com.apple.metadata:com_apple_backup_excludeItem".to_string())
+        Ok(attrs.contains(&"com.apple.metadata:com_apple_backup_excludeItem".to_string()))
     }
 
     fn parse_status_code(output: &str) -> isize {
@@ -123,7 +127,7 @@ mod tests {
         File::create(pathstr.clone()).unwrap();
         TimeMachine::add_exclusion(&pathstr).unwrap();
 
-        assert!(TimeMachine::is_excluded(&pathstr));
+        assert!(TimeMachine::is_excluded(&pathstr).unwrap());
 
         fs::remove_file(pathstr).unwrap();
     }
@@ -133,7 +137,7 @@ mod tests {
         let path = "./test_assets/root_file.txt";
         let result = TimeMachine::add_exclusion(path);
 
-        assert!(!TimeMachine::is_excluded(path));
+        assert!(!TimeMachine::is_excluded(path).unwrap());
         assert_matches!(result, Err(TimeMachineError::FileInaccessible));
     }
 
@@ -142,7 +146,6 @@ mod tests {
         let path = "./test_assets/not_a_file.txt";
         let result = TimeMachine::add_exclusion(path);
 
-        assert!(!TimeMachine::is_excluded(path));
         assert_matches!(result, Err(TimeMachineError::FileNotFound));
     }
 
@@ -157,11 +160,11 @@ mod tests {
         File::create(pathstr.clone()).unwrap();
         TimeMachine::add_exclusion(&pathstr).unwrap();
 
-        assert!(TimeMachine::is_excluded(&pathstr));
+        assert!(TimeMachine::is_excluded(&pathstr).unwrap());
 
         TimeMachine::remove_exclusion(&pathstr).unwrap();
 
-        assert!(!TimeMachine::is_excluded(&pathstr));
+        assert!(!TimeMachine::is_excluded(&pathstr).unwrap());
 
         fs::remove_file(pathstr).unwrap();
     }
@@ -171,7 +174,7 @@ mod tests {
         let path = "./test_assets/root_file_excluded.txt";
         let result = TimeMachine::remove_exclusion(path);
 
-        assert!(TimeMachine::is_excluded(path));
+        assert!(TimeMachine::is_excluded(path).unwrap());
         assert_matches!(result, Err(TimeMachineError::FileInaccessible));
     }
 
@@ -180,7 +183,6 @@ mod tests {
         let path = "./test_assets/not_a_file.txt";
         let result = TimeMachine::remove_exclusion(path);
 
-        assert!(!TimeMachine::is_excluded(path));
         assert_matches!(result, Err(TimeMachineError::FileNotFound));
     }
 }

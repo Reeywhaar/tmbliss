@@ -200,7 +200,7 @@ impl TMBliss {
                         return Ok(());
                     }
                 }
-                if TimeMachine::is_excluded(path) {
+                if TimeMachine::is_excluded(path)? {
                     logger.log("excluded", path);
                     if !dry_run {
                         TimeMachine::remove_exclusion(path)?
@@ -259,7 +259,7 @@ impl TMBliss {
 
             processed.borrow_mut().insert(item.clone());
 
-            if TimeMachine::is_excluded(&item) {
+            if TimeMachine::is_excluded(&item)? {
                 logger.log("excluded", &item);
             } else {
                 logger.log("new", &item);
@@ -297,7 +297,7 @@ impl TMBliss {
             }
         }
 
-        if TimeMachine::is_excluded(path) {
+        if TimeMachine::is_excluded(path)? {
             Self::process(
                 vec![Path::new(path)
                     .canonicalize()
