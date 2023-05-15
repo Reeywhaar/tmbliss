@@ -26,6 +26,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           prefix-key: ${{ matrix.toolchain.arch }}
+      - name: Setup tests
+        run: sudo bash pretest.sh
       - name: Test
         run: cargo test --release
 
