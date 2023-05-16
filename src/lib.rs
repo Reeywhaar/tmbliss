@@ -270,8 +270,15 @@ impl TMBliss {
             processed.borrow_mut().insert(item.clone());
 
             let check_result = TimeMachine::is_excluded(&item);
-            if let (false, true) = (conf.skip_errors, check_result.is_err()) {
-                check_result?;
+            if check_result.is_err() {
+                if conf.skip_errors {
+                    logger.log(
+                        "error_checking",
+                        &vec![item.clone(), check_result.unwrap_err().to_string()].join(", "),
+                    );
+                } else {
+                    check_result?;
+                }
             } else if check_result.unwrap() {
                 logger.log("excluded", &item);
             } else {
@@ -280,8 +287,15 @@ impl TMBliss {
 
             if !conf.dry_run {
                 let result = TimeMachine::add_exclusion(&item);
-                if let (false, Err(err)) = (conf.skip_errors, result) {
-                    return Err(err.into());
+                if result.is_err() {
+                    if conf.skip_errors {
+                        logger.log(
+                            "error_excluding",
+                            &vec![item.clone(), result.unwrap_err().to_string()].join(", "),
+                        );
+                    } else {
+                        result?;
+                    }
                 }
             }
         }
