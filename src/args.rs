@@ -40,6 +40,15 @@ pub enum Command {
         /// [--skip-path ./1 --skip-path ./2]
         #[arg(long)]
         skip_path: Vec<String>,
+
+        /// Skip errors when adding or checking exclusion.
+        /// In case of for example insufficient permissions.
+        #[arg(long, default_value = "true")]
+        skip_errors: bool,
+
+        /// Path that should be removed from time machine backup
+        #[arg(long)]
+        exclude_path: Vec<String>,
     },
 
     /// Runs command in given directory and shows files which would be excluded from backup. Alias for 'run --dry-run'
@@ -69,6 +78,15 @@ pub enum Command {
         /// [--skip-path ./1 --skip-path ./2]
         #[arg(long)]
         skip_path: Vec<String>,
+
+        /// Skip errors when adding or checking exclusion.
+        /// In case of for example insufficient permissions.
+        #[arg(long, default_value = "true")]
+        skip_errors: bool,
+
+        /// Path that should be removed from time machine backup
+        #[arg(long)]
+        exclude_path: Vec<String>,
     },
 
     /// Runs command with a configuration file
@@ -146,6 +164,8 @@ mod tests {
                 allowlist_path: vec![],
                 skip_glob: vec![],
                 skip_path: vec![],
+                skip_errors: true,
+                exclude_path: vec![],
             }
         );
     }
@@ -172,6 +192,8 @@ mod tests {
                 allowlist_path: vec![],
                 skip_glob: vec![],
                 skip_path: vec![],
+                skip_errors: true,
+                exclude_path: vec![],
             }
         );
     }
@@ -198,6 +220,8 @@ mod tests {
                 allowlist_path: vec![String::from("./1"), String::from("./2")],
                 skip_glob: vec![],
                 skip_path: vec![],
+                skip_errors: true,
+                exclude_path: vec![],
             }
         );
     }

@@ -19,8 +19,17 @@ pub struct Conf {
     #[serde(default)]
     pub skip_path: Vec<String>,
 
+    /// Should program run in dry run mode. No changes made
     #[serde(default)]
     pub dry_run: bool,
+
+    /// Should program skip errors (adding exclusion)
+    #[serde(default)]
+    pub skip_errors: bool,
+
+    /// Paths that should be removed from time machine backup
+    #[serde(default)]
+    pub exclude_paths: Vec<String>,
 }
 
 impl Default for Conf {
@@ -32,6 +41,8 @@ impl Default for Conf {
             skip_glob: Vec::new(),
             skip_path: Vec::new(),
             dry_run: true,
+            skip_errors: true,
+            exclude_paths: Vec::new(),
         }
     }
 }

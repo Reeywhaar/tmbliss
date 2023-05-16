@@ -37,6 +37,8 @@ impl TMBliss {
                 allowlist_path,
                 skip_glob,
                 skip_path,
+                skip_errors,
+                exclude_path,
             } => {
                 let logger = Logger { filter: None };
 
@@ -48,6 +50,8 @@ impl TMBliss {
                         allowlist_path,
                         skip_glob,
                         skip_path,
+                        skip_errors,
+                        exclude_paths: exclude_path,
                     },
                     &logger,
                 )
@@ -58,6 +62,8 @@ impl TMBliss {
                 allowlist_path,
                 skip_glob,
                 skip_path,
+                skip_errors,
+                exclude_path,
             } => {
                 let logger = Logger { filter: None };
 
@@ -69,6 +75,8 @@ impl TMBliss {
                         allowlist_path,
                         skip_glob,
                         skip_path,
+                        skip_errors,
+                        exclude_paths: exclude_path,
                     },
                     &logger,
                 )
@@ -177,6 +185,8 @@ impl TMBliss {
                 .with_context(|| format!("Can't process directory {}", path))?;
         }
 
+        Self::process(conf.exclude_paths.clone(), &conf, processed.clone(), logger)?;
+
         Ok(())
     }
 
@@ -259,14 +269,20 @@ impl TMBliss {
 
             processed.borrow_mut().insert(item.clone());
 
-            if TimeMachine::is_excluded(&item)? {
+            let check_result = TimeMachine::is_excluded(&item);
+            if let (false, true) = (conf.skip_errors, check_result.is_err()) {
+                check_result?;
+            } else if check_result.unwrap() {
                 logger.log("excluded", &item);
             } else {
                 logger.log("new", &item);
             }
 
             if !conf.dry_run {
-                TimeMachine::add_exclusion(&item)?;
+                let result = TimeMachine::add_exclusion(&item);
+                if let (false, Err(err)) = (conf.skip_errors, result) {
+                    return Err(err.into());
+                }
             }
         }
 

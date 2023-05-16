@@ -36,6 +36,8 @@ fn test_run() {
         allowlist_path: vec![not_excluded_dir.clone()],
         skip_glob: vec![],
         skip_path: vec![],
+        skip_errors: true,
+        exclude_path: vec![],
     };
     let result = TMBliss::run(command);
 
@@ -68,6 +70,8 @@ fn test_reset() {
         allowlist_path: vec![],
         skip_glob: vec![],
         skip_path: vec![],
+        skip_errors: true,
+        exclude_path: vec![],
     })
     .unwrap();
 
@@ -86,4 +90,14 @@ fn test_reset() {
     assert!(!TimeMachine::is_excluded(&excluded_path).unwrap());
     assert!(TimeMachine::is_excluded(&not_excluded_glob).unwrap());
     assert!(TimeMachine::is_excluded(&not_excluded_path).unwrap());
+}
+
+#[test]
+fn test_skip_errors() {
+    // unimplemented
+}
+
+#[test]
+fn test_exclude_paths() {
+    // unimplemented
 }
