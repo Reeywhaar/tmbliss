@@ -48,6 +48,42 @@ fn test_run() {
 }
 
 #[test]
+fn test_exclude_paths() {
+    let cwd = &path_to_string(&fs::canonicalize("./").unwrap());
+
+    let zip = join_path(cwd, "test_assets/test_dir.zip");
+    let unzipdir = TestDir {
+        path: join_path(cwd, &format!("test_assets_{}", Uuid::new_v4())),
+    };
+    let file = join_path(
+        &unzipdir.path,
+        "test_dir/test_repo/path_that_should_be_excluded.txt",
+    );
+
+    unzip(&zip, &unzipdir.path);
+
+    let command = Command::Run {
+        path: vec![],
+        dry_run: false,
+        allowlist_glob: vec![],
+        allowlist_path: vec![],
+        skip_glob: vec![],
+        skip_path: vec![],
+        skip_errors: true,
+        exclude_path: vec![file.clone()],
+    };
+    let result = TMBliss::run(command);
+
+    assert!(result.is_ok());
+    assert!(TimeMachine::is_excluded(&file).unwrap());
+}
+
+#[test]
+fn test_skip_errors() {
+    // unimplemented
+}
+
+#[test]
 fn test_reset() {
     let cwd = &path_to_string(&fs::canonicalize("./").unwrap());
 
@@ -90,14 +126,4 @@ fn test_reset() {
     assert!(!TimeMachine::is_excluded(&excluded_path).unwrap());
     assert!(TimeMachine::is_excluded(&not_excluded_glob).unwrap());
     assert!(TimeMachine::is_excluded(&not_excluded_path).unwrap());
-}
-
-#[test]
-fn test_skip_errors() {
-    // unimplemented
-}
-
-#[test]
-fn test_exclude_paths() {
-    // unimplemented
 }
