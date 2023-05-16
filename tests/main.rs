@@ -27,7 +27,7 @@ fn test_run() {
     unzip(&zip, &unzipdir.path);
 
     let command = Command::Run {
-        path: [dir].to_vec(),
+        path: vec![dir],
         dry_run: false,
         allowlist_glob: vec![
             "**/.excluded_glob".to_string(),
@@ -88,7 +88,7 @@ fn test_skip_errors() {
 
     {
         let command = Command::Run {
-            path: [dir.clone()].to_vec(),
+            path: vec![dir.clone()],
             dry_run: false,
             allowlist_glob: vec!["**/.DS_Store".to_string()],
             allowlist_path: vec![],
@@ -104,7 +104,7 @@ fn test_skip_errors() {
 
     {
         let command = Command::Run {
-            path: [dir].to_vec(),
+            path: vec![dir],
             dry_run: false,
             allowlist_glob: vec!["**/.DS_Store".to_string()],
             allowlist_path: vec![],
@@ -136,7 +136,7 @@ fn test_reset() {
     unzip(&zip, &unzipdir.path);
 
     TMBliss::run(Command::Run {
-        path: [dir.clone()].to_vec(),
+        path: vec![dir.clone()],
         dry_run: false,
         allowlist_glob: vec![],
         allowlist_path: vec![],
