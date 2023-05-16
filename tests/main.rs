@@ -80,7 +80,43 @@ fn test_exclude_paths() {
 
 #[test]
 fn test_skip_errors() {
-    // unimplemented
+    let cwd = &path_to_string(&fs::canonicalize("./").unwrap());
+
+    let dir = join_path(cwd, "test_assets");
+
+    let root_file = join_path(&dir, "root_file.txt");
+
+    {
+        let command = Command::Run {
+            path: [dir.clone()].to_vec(),
+            dry_run: false,
+            allowlist_glob: vec!["**/.DS_Store".to_string()],
+            allowlist_path: vec![],
+            skip_glob: vec![],
+            skip_path: vec![],
+            skip_errors: true,
+            exclude_path: vec![root_file.clone()],
+        };
+        let result = TMBliss::run(command);
+
+        assert!(result.is_ok());
+    }
+
+    {
+        let command = Command::Run {
+            path: [dir].to_vec(),
+            dry_run: false,
+            allowlist_glob: vec!["**/.DS_Store".to_string()],
+            allowlist_path: vec![],
+            skip_glob: vec![],
+            skip_path: vec![],
+            skip_errors: false,
+            exclude_path: vec![root_file],
+        };
+        let result = TMBliss::run(command);
+
+        assert_eq!(result.unwrap_err().to_string(), "File inaccessible");
+    }
 }
 
 #[test]

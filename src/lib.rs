@@ -23,7 +23,7 @@ use crate::conf::Conf;
 use crate::directory_iterator::DirectoryIterator;
 use crate::git::Git;
 use crate::logger::Logger;
-pub use crate::time_machine::TimeMachine;
+pub use crate::time_machine::{TimeMachine, TimeMachineError};
 
 pub struct TMBliss {}
 
