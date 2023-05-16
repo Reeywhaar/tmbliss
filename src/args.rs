@@ -19,25 +19,27 @@ pub enum Command {
         #[arg(long, default_value = "false")]
         dry_run: bool,
 
-        /// Force include file globs into backup. [--allowlist-glob ... --allowlist-glob ...]
+        /// Force include file globs into backup.
+        /// Allows multiple globs. [--allowlist-glob ... --allowlist-glob ...]
         #[arg(long)]
         allowlist_glob: Vec<String>,
 
-        /// Force include file paths into backup. [--allowlist-path ./1 --allowlist-path ./2]
+        /// Force include file paths into backup.
+        /// Allows multiple paths. [--allowlist-path ./1 --allowlist-path ./2]
         #[arg(long)]
         allowlist_path: Vec<String>,
 
         /// Skip file globs from checking.
         /// Difference with allowlist is that if condition
-        /// met than program wont do processing for child directories
-        /// [--skip-glob ... --skip-glob ...]
+        /// met than program wont do processing for child directories.
+        /// Allows multiple globs. [--skip-glob ... --skip-glob ...]
         #[arg(long)]
         skip_glob: Vec<String>,
 
         /// Skip file paths from checking.
         /// Difference with allowlist is that if condition
-        /// met than program wont do processing for child directories
-        /// [--skip-path ./1 --skip-path ./2]
+        /// met than program wont do processing for child directories.
+        /// Allows multiple paths. [--skip-path ./1 --skip-path ./2]
         #[arg(long)]
         skip_path: Vec<String>,
 
@@ -46,7 +48,8 @@ pub enum Command {
         #[arg(long, default_value = "true")]
         skip_errors: bool,
 
-        /// Path that should be removed from time machine backup
+        /// Path that should be removed from time machine backup.
+        /// Allows multiple paths. [--exclude-path ./1 --exclude-path ./2]
         #[arg(long)]
         exclude_path: Vec<String>,
     },
