@@ -4,7 +4,7 @@ use anyhow::{anyhow, Context, Result};
 
 pub struct RecursiveDirectoryIterator<'a> {
     pub path: String,
-    pub op: &'a dyn Fn(&str) -> Result<()>,
+    pub op: &'a dyn Fn(&str) -> Result<bool>,
 }
 
 impl<'a> RecursiveDirectoryIterator<'a> {
@@ -18,9 +18,10 @@ impl<'a> RecursiveDirectoryIterator<'a> {
                 .to_str()
                 .ok_or(anyhow!("Could not convert path to string"))?;
 
-            (self.op)(pathstr).with_context(|| format!("Can't process path {}", pathstr))?;
+            let should_continue =
+                (self.op)(pathstr).with_context(|| format!("Can't process path {}", pathstr))?;
 
-            if !path.is_symlink() && path.is_dir() {
+            if should_continue && !path.is_symlink() && path.is_dir() {
                 let iterator = RecursiveDirectoryIterator {
                     path: pathstr.to_string(),
                     op: self.op,
@@ -67,7 +68,7 @@ mod tests {
                 let paths = paths.clone();
                 let mut paths = paths.try_borrow_mut().unwrap();
                 paths.push(path.to_string());
-                Ok(())
+                Ok(true)
             },
         };
 

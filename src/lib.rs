@@ -202,12 +202,12 @@ impl TMBliss {
             op: &|path| {
                 for exclusion in &allowlist_path {
                     if Self::is_inside(exclusion, path) {
-                        return Ok(());
+                        return Ok(true);
                     }
                 }
                 for exclusion in &allowlist_glob {
                     if glob_match(exclusion, path) {
-                        return Ok(());
+                        return Ok(true);
                     }
                 }
                 if TimeMachine::is_excluded(path)? {
@@ -216,7 +216,7 @@ impl TMBliss {
                         TimeMachine::remove_exclusion(path)?
                     }
                 }
-                Ok(())
+                Ok(true)
             },
         };
 
