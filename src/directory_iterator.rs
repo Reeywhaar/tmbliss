@@ -35,7 +35,7 @@ impl<'a> DirectoryIterator<'a> {
                 }
             }
 
-            if path.is_dir() {
+            if !path.is_symlink() && path.is_dir() {
                 paths.push(pathstr.to_string());
             }
         }
