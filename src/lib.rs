@@ -185,7 +185,9 @@ impl TMBliss {
                 .with_context(|| format!("Can't process directory {}", path))?;
         }
 
-        Self::process(conf.exclude_paths.clone(), &conf, processed.clone(), logger)?;
+        for item in conf.exclude_paths.clone() {
+            Self::process(item, &conf, processed.clone(), logger)?;
+        }
 
         Ok(())
     }
@@ -257,45 +259,43 @@ impl TMBliss {
     }
 
     fn process(
-        items: Vec<String>,
+        item: String,
         conf: &Conf,
         processed: Rc<RefCell<HashSet<String>>>,
         logger: &Logger,
     ) -> Result<()> {
-        for item in items {
-            if processed.borrow().contains(&item) {
-                continue;
+        if processed.borrow().contains(&item) {
+            return Ok(());
+        }
+
+        processed.borrow_mut().insert(item.clone());
+
+        let check_result = TimeMachine::is_excluded(&item);
+        if check_result.is_err() {
+            if conf.skip_errors {
+                logger.log(
+                    "error_checking",
+                    &vec![item.clone(), check_result.unwrap_err().to_string()].join(", "),
+                );
+            } else {
+                check_result?;
             }
+        } else if check_result.unwrap() {
+            logger.log("excluded", &item);
+        } else {
+            logger.log("new", &item);
+        }
 
-            processed.borrow_mut().insert(item.clone());
-
-            let check_result = TimeMachine::is_excluded(&item);
-            if check_result.is_err() {
+        if !conf.dry_run {
+            let result = TimeMachine::add_exclusion(&item);
+            if result.is_err() {
                 if conf.skip_errors {
                     logger.log(
-                        "error_checking",
-                        &vec![item.clone(), check_result.unwrap_err().to_string()].join(", "),
+                        "error_excluding",
+                        &vec![item, result.unwrap_err().to_string()].join(", "),
                     );
                 } else {
-                    check_result?;
-                }
-            } else if check_result.unwrap() {
-                logger.log("excluded", &item);
-            } else {
-                logger.log("new", &item);
-            }
-
-            if !conf.dry_run {
-                let result = TimeMachine::add_exclusion(&item);
-                if result.is_err() {
-                    if conf.skip_errors {
-                        logger.log(
-                            "error_excluding",
-                            &vec![item.clone(), result.unwrap_err().to_string()].join(", "),
-                        );
-                    } else {
-                        result?;
-                    }
+                    result?;
                 }
             }
         }
@@ -329,12 +329,12 @@ impl TMBliss {
 
         if TimeMachine::is_excluded(path)? {
             Self::process(
-                vec![Path::new(path)
+                Path::new(path)
                     .canonicalize()
                     .with_context(|| format!("Can't canonicalize path {}", path))?
                     .to_str()
                     .ok_or(anyhow!("Can't convert path {} to string", path))?
-                    .to_string()],
+                    .to_string(),
                 conf,
                 processed,
                 logger,
@@ -345,8 +345,10 @@ impl TMBliss {
 
         let excludes = Self::get_git_excludes(path, conf);
 
-        Self::process(excludes.clone(), conf, processed.clone(), logger)
-            .with_context(|| format!("Can't process paths {}", excludes.join(", ")))?;
+        for item in excludes.clone() {
+            Self::process(item, conf, processed.clone(), logger)
+                .with_context(|| format!("Can't process paths {}", excludes.join(", ")))?;
+        }
 
         let directory_iterator = DirectoryIterator {
             path,
