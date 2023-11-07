@@ -7,6 +7,7 @@ pub struct Git {
 }
 
 impl Git {
+    /// Lists all files that are ignored by git
     pub fn get_ignores_list(&self) -> Result<Vec<String>> {
         let out = Command::new("/usr/bin/git")
             .current_dir(self.path.as_str())
@@ -35,15 +36,16 @@ impl Git {
         Ok(output)
     }
 
-    pub fn path_to_string(&self, path: &str) -> Result<String> {
+    /// Checks if a directory is a git service directory (".git")
+    pub fn is_git(path: &str) -> bool {
+        path.ends_with("/.git")
+    }
+
+    fn path_to_string(&self, path: &str) -> Result<String> {
         Ok(fs::canonicalize(Path::new(self.path.as_str()).join(path))?
             .to_str()
             .ok_or(anyhow!("Could not convert path to string"))?
             .to_string())
-    }
-
-    pub fn is_git(path: &str) -> bool {
-        path.ends_with("/.git")
     }
 
     fn remove_roots(&self, list: Vec<String>) -> Vec<String> {
