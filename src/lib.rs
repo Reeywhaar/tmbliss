@@ -180,13 +180,13 @@ impl TMBliss {
             false
         };
 
+        for item in conf.exclude_paths.clone() {
+            Self::process(item, &conf, processed.clone(), logger)?;
+        }
+
         for path in &conf.paths {
             Self::process_directory(path, &conf, Some(&excluder), processed.clone(), logger)
                 .with_context(|| format!("Can't process directory {}", path))?;
-        }
-
-        for item in conf.exclude_paths.clone() {
-            Self::process(item, &conf, processed.clone(), logger)?;
         }
 
         Ok(())
