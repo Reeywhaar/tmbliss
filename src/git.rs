@@ -91,7 +91,7 @@ mod tests {
         let mut list = git.get_ignores_list().unwrap();
         list.sort();
 
-        let mut result = vec![
+        let mut result = [
             join_path(&dir, ".excluded_glob"),
             join_path(&dir, "excluded_path"),
             join_path(&dir, "not_excluded_path"),

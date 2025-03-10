@@ -10,7 +10,7 @@ pub struct DirectoryIterator<'a> {
     pub exclude: Option<&'a dyn Fn(&str) -> bool>,
 }
 
-impl<'a> DirectoryIterator<'a> {
+impl DirectoryIterator<'_> {
     pub fn list(&self) -> Result<Vec<String>> {
         let mut paths = Vec::new();
 

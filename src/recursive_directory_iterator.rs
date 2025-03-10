@@ -7,7 +7,7 @@ pub struct RecursiveDirectoryIterator<'a> {
     pub op: &'a dyn Fn(&str) -> Result<bool>,
 }
 
-impl<'a> RecursiveDirectoryIterator<'a> {
+impl RecursiveDirectoryIterator<'_> {
     pub fn iterate(&self) -> Result<()> {
         for entry in
             fs::read_dir(&self.path).with_context(|| format!("Can't read dir {}", self.path))?

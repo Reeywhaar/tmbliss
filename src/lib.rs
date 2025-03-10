@@ -230,7 +230,7 @@ impl TMBliss {
             path: path.to_string(),
         };
         git.get_ignores_list()
-            .unwrap_or(Vec::new())
+            .unwrap_or_default()
             .into_iter()
             .filter(|item| {
                 for exclusion in &conf.skip_path {
@@ -275,7 +275,7 @@ impl TMBliss {
             if conf.skip_errors {
                 logger.log(
                     "error_checking",
-                    &vec![item.clone(), check_result.unwrap_err().to_string()].join(", "),
+                    &[item.clone(), check_result.unwrap_err().to_string()].join(", "),
                 );
             } else {
                 check_result?;
@@ -292,7 +292,7 @@ impl TMBliss {
                 if conf.skip_errors {
                     logger.log(
                         "error_excluding",
-                        &vec![item, result.unwrap_err().to_string()].join(", "),
+                        &[item, result.unwrap_err().to_string()].join(", "),
                     );
                 } else {
                     result?;
