@@ -282,6 +282,7 @@ impl TMBliss {
             }
         } else if check_result.unwrap() {
             logger.log("excluded", &item);
+            return Ok(());
         } else {
             logger.log("new", &item);
         }
