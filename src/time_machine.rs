@@ -74,7 +74,9 @@ impl TimeMachine {
         let status = Self::parse_status_code(output);
         match status {
             -43 => TimeMachineError::FileNotFound,
+            100002 => TimeMachineError::FileNotFound,
             -50 => TimeMachineError::FileInaccessible,
+            -20 => TimeMachineError::FileInaccessible,
             status => TimeMachineError::Unknown(format!("Unknown error with status {}", status)),
         }
     }
