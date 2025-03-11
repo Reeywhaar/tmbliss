@@ -112,7 +112,7 @@ jobs:
           name: homebrew
           path: homebrew.zip
       - name: "Create Release"
-        uses: softprops/action-gh-release@78c309ef59fdb9557cd6574f2e0be552936ed728
+        uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
