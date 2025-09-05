@@ -1,3 +1,5 @@
+use std::fs::File;
+use std::io::{BufRead, BufReader};
 #[cfg(test)]
 pub mod test_utils;
 
@@ -153,43 +155,36 @@ impl TMBliss {
     fn mark_files(conf: Conf, logger: &Logger) -> Result<()> {
         let processed: Rc<RefCell<HashSet<String>>> = Rc::new(RefCell::new(HashSet::new()));
 
-        let excluder = |path: &str| -> bool {
-            if processed.borrow().contains(path) {
-                return true;
-            }
-
-            if Git::is_git(path) {
-                processed.borrow_mut().insert(path.to_string());
-                return true;
-            }
-
-            for exclusion in &conf.skip_glob {
-                if glob_match(exclusion, path) {
-                    processed.borrow_mut().insert(path.to_string());
-                    return true;
-                }
-            }
-
-            for exclusion in &conf.skip_path {
-                if Self::is_inside(exclusion, path) {
-                    processed.borrow_mut().insert(path.to_string());
-                    return true;
-                }
-            }
-
-            false
-        };
-
         for item in conf.exclude_paths.clone() {
             Self::process(item, &conf, processed.clone(), logger)?;
         }
 
         for path in &conf.paths {
-            Self::process_directory(path, &conf, Some(&excluder), processed.clone(), logger)
-                .with_context(|| format!("Can't process directory {}", path))?;
+            Self::process_directory(path, &conf, processed.clone(), logger)?;
         }
 
         Ok(())
+    }
+    // Reads .tmbliss file in the given directory and returns a Vec of globs (ignores comments and empty lines)
+    fn read_tmbliss_globs(dir: &str) -> Vec<String> {
+        let tmbliss_path = Path::new(dir).join(".tmbliss");
+        let file = File::open(&tmbliss_path);
+        if let Ok(file) = file {
+            let reader = BufReader::new(file);
+            reader
+                .lines()
+                .filter_map(|line| {
+                    let line = line.ok()?.trim().to_string();
+                    if line.is_empty() || line.starts_with('#') {
+                        None
+                    } else {
+                        Some(line)
+                    }
+                })
+                .collect()
+        } else {
+            Vec::new()
+        }
     }
 
     fn reset_files(
@@ -321,14 +316,40 @@ impl TMBliss {
     fn process_directory(
         path: &str,
         conf: &Conf,
-        excluder: Option<&dyn Fn(&str) -> bool>,
         processed: Rc<RefCell<HashSet<String>>>,
         logger: &Logger,
     ) -> Result<()> {
-        if let Some(excluder) = excluder {
-            if excluder(path) {
-                return Ok(());
+        // Gather .tmbliss globs for this directory
+        let mut effective_skip_glob = conf.skip_glob.clone();
+        let tmbliss_globs = Self::read_tmbliss_globs(path);
+        effective_skip_glob.extend(tmbliss_globs);
+
+        // Excluder closure that uses effective_skip_glob
+        let excluder = |item: &str| -> bool {
+            if processed.borrow().contains(item) {
+                return true;
             }
+            if Git::is_git(item) {
+                processed.borrow_mut().insert(item.to_string());
+                return true;
+            }
+            for exclusion in &effective_skip_glob {
+                if glob_match(exclusion, item) {
+                    processed.borrow_mut().insert(item.to_string());
+                    return true;
+                }
+            }
+            for exclusion in &conf.skip_path {
+                if Self::is_inside(exclusion, item) {
+                    processed.borrow_mut().insert(item.to_string());
+                    return true;
+                }
+            }
+            false
+        };
+
+        if excluder(path) {
+            return Ok(());
         }
 
         if TimeMachine::is_excluded(path)? {
@@ -348,7 +369,6 @@ impl TMBliss {
         }
 
         let excludes = Self::get_git_excludes(path, conf);
-
         for item in excludes.clone() {
             Self::process(item, conf, processed.clone(), logger)
                 .with_context(|| format!("Can't process paths {}", excludes.join(", ")))?;
@@ -356,14 +376,17 @@ impl TMBliss {
 
         let directory_iterator = DirectoryIterator {
             path,
-            exclude: excluder,
+            exclude: Some(&excluder),
         };
         let directories = directory_iterator
             .list()
             .with_context(|| format!("Can't list directory {}", path))?;
 
         for path in directories {
-            Self::process_directory(&path, conf, excluder, processed.clone(), logger)
+            // Recurse, passing down the new effective_skip_glob
+            let mut sub_conf = conf.clone();
+            sub_conf.skip_glob = effective_skip_glob.clone();
+            Self::process_directory(&path, &sub_conf, processed.clone(), logger)
                 .with_context(|| format!("Can't process directory {}", path))?;
         }
 

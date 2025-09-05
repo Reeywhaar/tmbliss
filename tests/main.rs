@@ -11,6 +11,37 @@ use tmbliss::{Command, TMBliss, TimeMachine};
 use uuid::Uuid;
 
 #[test]
+fn test_tmbliss_glob_exclusion() {
+    let cwd = &path_to_string(&fs::canonicalize("./").unwrap());
+    let dir = join_path(cwd, "test_assets/tmbliss_dir");
+    let excluded_log = join_path(&dir, "should_be_excluded.log");
+    let excluded_secret = join_path(&dir, "secret/hidden.txt");
+    let not_excluded = join_path(&dir, "should_not_be_excluded.txt");
+
+    // Clean up any previous exclusions
+    let _ = TimeMachine::remove_exclusion(&excluded_log);
+    let _ = TimeMachine::remove_exclusion(&excluded_secret);
+    let _ = TimeMachine::remove_exclusion(&not_excluded);
+
+    let command = Command::Run {
+        path: vec![dir.clone()],
+        dry_run: false,
+        allowlist_glob: vec![],
+        allowlist_path: vec![],
+        skip_glob: vec![],
+        skip_path: vec![],
+        skip_errors: true,
+        exclude_path: vec![],
+    };
+    let result = TMBliss::run(command);
+
+    assert!(result.is_ok());
+    assert!(TimeMachine::is_excluded(&excluded_log).unwrap());
+    assert!(TimeMachine::is_excluded(&excluded_secret).unwrap());
+    assert!(!TimeMachine::is_excluded(&not_excluded).unwrap());
+}
+
+#[test]
 fn test_run() {
     let cwd = &path_to_string(&fs::canonicalize("./").unwrap());
 

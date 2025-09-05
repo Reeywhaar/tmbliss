@@ -1,0 +1,4 @@
+# Ignore all .log files
+*.log
+# Ignore files in secret subdir
+secret/*

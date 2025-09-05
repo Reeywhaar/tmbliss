@@ -3,7 +3,7 @@ use std::{fs::File, io::BufReader};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Conf {
     pub paths: Vec<String>,
 
