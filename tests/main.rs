@@ -1,14 +1,81 @@
 extern crate tmbliss;
 
+#[path = "../src/filetree.rs"]
+mod filetree;
 #[path = "../src/test_utils.rs"]
 mod test_utils;
 
-use crate::test_utils::{unzip, TestDir};
+use crate::{
+    filetree::{FileTree, FileTreeItem},
+    test_utils::{unzip, TestDir},
+};
 
 use std::env::current_dir;
-use std::fs;
 
 use tmbliss::{Command, TMBliss, TimeMachine};
+
+#[test]
+fn test_tmbliss_glob_exclusion() {
+    let cases = ["sec*.txt", "/sec*.txt", "/secret.txt", "secret.txt"];
+
+    for case in cases {
+        let tree = FileTree {
+            path: "test_tmbliss_glob_exclusion_workspace",
+            items: vec![
+                FileTreeItem::Gitignore(
+                    "gitignore".to_string(),
+                    "".to_string(),
+                    vec!["**/devfile.txt".to_string(), "secret.txt".to_string()],
+                ),
+                FileTreeItem::TmBliss(
+                    "tmbliss".to_string(),
+                    "".to_string(),
+                    vec![case.to_string(), "sub".to_string()],
+                ),
+                FileTreeItem::File("devfile".to_string(), "devfile.txt".to_string(), false),
+                FileTreeItem::File("secret".to_string(), "secret.txt".to_string(), false),
+                FileTreeItem::File(
+                    "sub/devfile".to_string(),
+                    "sub/devfile.txt".to_string(),
+                    false,
+                ),
+            ],
+        };
+
+        let hmap = tree.create();
+
+        let command = Command::Run {
+            path: vec![hmap
+                .get("__workspace")
+                .unwrap()
+                .to_string_lossy()
+                .to_string()],
+            dry_run: false,
+            allowlist_glob: vec![],
+            allowlist_path: vec![],
+            skip_glob: vec![],
+            skip_path: vec![],
+            skip_errors: false,
+            exclude_path: vec![],
+        };
+        let result = TMBliss::run(command);
+        result.unwrap();
+
+        // devfiles should be excluded (by .gitignore), secret should NOT be excluded (by .gitignore), but secret/* is excluded by .tmbliss
+        assert!(
+            TimeMachine::is_excluded(hmap.get("devfile").unwrap()).unwrap(),
+            "Devfile is not excluded"
+        );
+        assert!(
+            !TimeMachine::is_excluded(hmap.get("secret").unwrap()).unwrap(),
+            "Secret file is excluded, but it should not be"
+        );
+        assert!(
+            !TimeMachine::is_excluded(hmap.get("sub/devfile").unwrap()).unwrap(),
+            "Sub/devfile is excluded, but it should not be"
+        );
+    }
+}
 
 #[test]
 fn test_run() {
@@ -32,7 +99,7 @@ fn test_run() {
         allowlist_path: vec![not_excluded_dir.to_string_lossy().into_owned()],
         skip_glob: vec![],
         skip_path: vec![],
-        skip_errors: true,
+        skip_errors: false,
         exclude_path: vec![],
     };
     let result = TMBliss::run(command);
