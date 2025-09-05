@@ -21,6 +21,21 @@ impl TimeMachine {
             .is_some())
     }
 
+    pub fn is_excluded_deep(path: &Path) -> Result<bool, TimeMachineError> {
+        let mut p = path.to_path_buf();
+        loop {
+            if Self::is_excluded(&p)? {
+                return Ok(true);
+            }
+            let parent = p.parent();
+            if parent.is_none() {
+                break;
+            }
+            p = parent.unwrap().to_path_buf();
+        }
+        Ok(false)
+    }
+
     fn parse_error(err: std::io::Error) -> TimeMachineError {
         match err.raw_os_error() {
             Some(2) => TimeMachineError::FileNotFound(Some(Box::new(err))),

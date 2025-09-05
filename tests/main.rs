@@ -1,13 +1,148 @@
 extern crate tmbliss;
 
+#[path = "../src/filetree.rs"]
+mod filetree;
 #[path = "../src/test_utils.rs"]
 mod test_utils;
 
-use crate::test_utils::{unzip, TestDir};
+use crate::{
+    filetree::{FileTree, FileTreeItem},
+    test_utils::{unzip, TestDir},
+};
 
 use std::env::current_dir;
+use test_case::test_case;
 
 use tmbliss::{Command, TMBliss, TimeMachine};
+
+#[test_case("sec*.txt" ; "sec*.txt")]
+#[test_case("/sec*.txt" ; "/sec*.txt")]
+#[test_case("/secret.txt" ; "/secret.txt")]
+#[test_case("secret.txt" ; "secret.txt")]
+fn test_tmbliss_glob_exclusion(case: &str) {
+    let tree = FileTree::new(vec![
+        FileTreeItem::Gitignore {
+            key: "gitignore".to_string(),
+            path: "".to_string(),
+            patterns: vec!["**/devfile.txt".to_string(), "secret.txt".to_string()],
+        },
+        FileTreeItem::TmBliss {
+            key: "tmbliss".to_string(),
+            path: "".to_string(),
+            patterns: vec![case.to_string(), "sub".to_string()],
+        },
+        FileTreeItem::File {
+            key: "devfile".to_string(),
+            name: "devfile.txt".to_string(),
+            is_excluded: false,
+        },
+        FileTreeItem::File {
+            key: "secret".to_string(),
+            name: "secret.txt".to_string(),
+            is_excluded: false,
+        },
+        FileTreeItem::File {
+            key: "sub/devfile".to_string(),
+            name: "sub/devfile.txt".to_string(),
+            is_excluded: false,
+        },
+    ]);
+
+    let hmap = tree.create();
+
+    let command = Command::Run {
+        path: vec![hmap
+            .get("__workspace")
+            .unwrap()
+            .to_string_lossy()
+            .to_string()],
+        dry_run: false,
+        allowlist_glob: vec![],
+        allowlist_path: vec![],
+        skip_glob: vec![],
+        skip_path: vec![],
+        skip_errors: false,
+        exclude_path: vec![],
+    };
+    let result = TMBliss::run(command);
+    result.unwrap();
+
+    assert!(
+        TimeMachine::is_excluded_deep(hmap.get("devfile").unwrap()).unwrap(),
+        "Devfile is not excluded"
+    );
+    assert!(
+        !TimeMachine::is_excluded_deep(hmap.get("secret").unwrap()).unwrap(),
+        "Secret file is excluded, but it should not be"
+    );
+    assert!(
+        !TimeMachine::is_excluded_deep(hmap.get("sub/devfile").unwrap()).unwrap(),
+        "Sub/devfile is excluded, but it should not be"
+    );
+}
+
+#[test]
+fn test_tmbliss_glob_exclusion_2() {
+    let tree = FileTree::new(vec![
+        FileTreeItem::Gitignore {
+            key: "gitignore".to_string(),
+            path: "".to_string(),
+            patterns: vec!["**/devfile.txt".to_string(), "sub".to_string()],
+        },
+        FileTreeItem::TmBliss {
+            key: "tmbliss".to_string(),
+            path: "".to_string(),
+            patterns: vec!["sub".to_string()],
+        },
+        FileTreeItem::File {
+            key: "devfile".to_string(),
+            name: "devfile.txt".to_string(),
+            is_excluded: false,
+        },
+        FileTreeItem::Directory {
+            key: "sub".to_string(),
+            name: "sub".to_string(),
+            is_excluded: false,
+        },
+        FileTreeItem::File {
+            key: "sub/devfile".to_string(),
+            name: "sub/devfile.txt".to_string(),
+            is_excluded: false,
+        },
+    ]);
+
+    let hmap = tree.create();
+
+    let command = Command::Run {
+        path: vec![hmap
+            .get("__workspace")
+            .unwrap()
+            .to_string_lossy()
+            .to_string()],
+        dry_run: false,
+        allowlist_glob: vec![],
+        allowlist_path: vec![],
+        skip_glob: vec![],
+        skip_path: vec![],
+        skip_errors: false,
+        exclude_path: vec![],
+    };
+    let result = TMBliss::run(command);
+    result.unwrap();
+
+    assert!(
+        TimeMachine::is_excluded_deep(hmap.get("devfile").unwrap()).unwrap(),
+        "Devfile is not excluded"
+    );
+    assert!(
+        !TimeMachine::is_excluded_deep(hmap.get("sub").unwrap()).unwrap(),
+        "Sub directory is excluded, but it should not be"
+    );
+    assert!(
+        !TimeMachine::is_excluded_deep(hmap.get("sub/devfile").unwrap()).unwrap(),
+        "Sub/devfile is excluded, but it should not be"
+    );
+}
 
 #[test]
 fn test_run() {
@@ -31,7 +166,7 @@ fn test_run() {
         allowlist_path: vec![not_excluded_dir.to_string_lossy().into_owned()],
         skip_glob: vec![],
         skip_path: vec![],
-        skip_errors: true,
+        skip_errors: false,
         exclude_path: vec![],
     };
     let result = TMBliss::run(command);
