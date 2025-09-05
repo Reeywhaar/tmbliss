@@ -143,7 +143,7 @@ impl TMBliss {
                 allowlist_path,
                 &Logger { filter: None },
             ),
-            Command::MarkdownHelp {} => {
+            Command::MarkdownHelp => {
                 clap_markdown::print_help_markdown::<Args>();
                 Ok(())
             }
@@ -271,32 +271,35 @@ impl TMBliss {
         processed.borrow_mut().insert(item.clone());
 
         let check_result = TimeMachine::is_excluded(&item);
-        if check_result.is_err() {
-            if conf.skip_errors {
-                logger.log(
-                    "error_checking",
-                    &[item.clone(), check_result.unwrap_err().to_string()].join(", "),
-                );
-            } else {
-                check_result?;
+        match check_result {
+            Ok(is_excluded) => {
+                if is_excluded {
+                    logger.log("excluded", &item);
+                    return Ok(());
+                } else {
+                    logger.log("new", &item);
+                }
             }
-        } else if check_result.unwrap() {
-            logger.log("excluded", &item);
-            return Ok(());
-        } else {
-            logger.log("new", &item);
+            Err(e) => {
+                if conf.skip_errors {
+                    logger.log("error_checking", &[item.clone(), e.to_string()].join(", "));
+                    return Ok(());
+                } else {
+                    return Err(e);
+                }
+            }
         }
 
         if !conf.dry_run {
             let result = TimeMachine::add_exclusion(&item);
-            if result.is_err() {
-                if conf.skip_errors {
-                    logger.log(
-                        "error_excluding",
-                        &[item, result.unwrap_err().to_string()].join(", "),
-                    );
-                } else {
-                    result?;
+            match result {
+                Ok(_) => {}
+                Err(e) => {
+                    if conf.skip_errors {
+                        logger.log("error_excluding", &[item.clone(), e.to_string()].join(", "));
+                    } else {
+                        return Err(e.into());
+                    }
                 }
             }
         }
