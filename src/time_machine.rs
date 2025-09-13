@@ -12,6 +12,7 @@ impl TimeMachine {
 
         let output = command
             .output()
+            .with_context(|| "Failed to execute tmutil command")
             .map_err(|e| TimeMachineError::Unknown(e.to_string()))?;
 
         if !output.status.success() {
@@ -45,7 +46,10 @@ impl TimeMachine {
     }
 
     pub fn is_excluded(path: &Path) -> Result<bool> {
-        let result = Command::new("/usr/bin/xattr").arg(path).output()?;
+        let result = Command::new("/usr/bin/xattr")
+            .arg(path)
+            .output()
+            .with_context(|| "Failed to execute xattr command")?;
 
         if !result.status.success() {
             return Err(anyhow!(String::from_utf8_lossy(&result.stderr).to_string()));
