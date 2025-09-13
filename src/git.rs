@@ -1,16 +1,19 @@
-use std::{fs, path::Path, process::Command};
+use std::{
+    path::{Path, PathBuf},
+    process::Command,
+};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 
 pub struct Git {
-    pub path: String,
+    pub path: PathBuf,
 }
 
 impl Git {
     /// Lists all files that are ignored by git
-    pub fn get_ignores_list(&self) -> Result<Vec<String>> {
+    pub fn get_ignores_list(&self) -> Result<Vec<PathBuf>> {
         let out = Command::new("/usr/bin/git")
-            .current_dir(self.path.as_str())
+            .current_dir(&self.path)
             .arg("ls-files")
             .arg("--directory") // Do not list contained files of ignored directories
             .arg("--exclude-standard") // Also use `.git/info/exclude` and global `.gitignore` files
@@ -22,34 +25,35 @@ impl Git {
         let output =
             String::from_utf8(out.stdout).with_context(|| "Cannot create string from output")?;
 
-        let mut output: Vec<String> = output
+        let mut output: Vec<PathBuf> = output
             .split('\0')
             .filter(|p| !p.is_empty())
             .filter(|p| !p.starts_with("../"))
-            .map(|v| self.path_to_string(v))
-            .collect::<Result<Vec<String>>>()?;
+            .map(|v| self.join_path(v))
+            .collect::<Result<Vec<PathBuf>>>()?;
 
         output.sort();
 
-        let output = self.remove_roots(output);
+        let output = self
+            .remove_roots(output)
+            .iter()
+            .map(|p| p.canonicalize().unwrap())
+            .collect::<Vec<PathBuf>>();
 
         Ok(output)
     }
 
     /// Checks if a directory is a git service directory (".git")
-    pub fn is_git(path: &str) -> bool {
-        path.ends_with("/.git")
+    pub fn is_git(path: &Path) -> bool {
+        path.ends_with(".git")
     }
 
-    fn path_to_string(&self, path: &str) -> Result<String> {
-        Ok(fs::canonicalize(Path::new(self.path.as_str()).join(path))?
-            .to_str()
-            .ok_or(anyhow!("Could not convert path to string"))?
-            .to_string())
+    fn join_path(&self, path: &str) -> Result<PathBuf> {
+        Ok(self.path.join(path))
     }
 
-    fn remove_roots(&self, list: Vec<String>) -> Vec<String> {
-        let mut output: Vec<String> = Vec::new();
+    fn remove_roots(&self, list: Vec<PathBuf>) -> Vec<PathBuf> {
+        let mut output: Vec<PathBuf> = Vec::new();
 
         'outer: for i in 0..list.len() {
             let item = &list[i];
@@ -68,48 +72,53 @@ impl Git {
 
 #[cfg(test)]
 mod tests {
-    use uuid::Uuid;
+    use std::env::current_dir;
 
-    use crate::test_utils::{join_path, path_to_string, unzip, TestDir};
+    use crate::test_utils::{unzip, TestDir};
 
     use super::*;
 
     #[test]
     fn it_lists_ignored_files() {
-        let cwd = &path_to_string(&fs::canonicalize("./").unwrap());
+        let workspace = TestDir::new();
 
-        let zip = join_path(cwd, "test_assets/test_dir.zip");
-        let unzipdir = TestDir {
-            path: join_path(cwd, &format!("test_assets_{}", Uuid::new_v4())),
-        };
-        let dir = join_path(&unzipdir.path, "test_dir/test_repo");
+        let zip = current_dir().unwrap().join("test_assets/test_dir.zip");
+        let dir = workspace.join("test_dir/test_repo");
 
-        unzip(&zip, &unzipdir.path);
+        unzip(&zip, workspace.path());
 
         let git = Git { path: dir.clone() };
 
-        let mut list = git.get_ignores_list().unwrap();
+        let mut list = git
+            .get_ignores_list()
+            .unwrap()
+            .iter()
+            .map(|p| p.to_str().unwrap().to_string())
+            .collect::<Vec<String>>();
         list.sort();
 
         let mut result = [
-            join_path(&dir, ".excluded_glob"),
-            join_path(&dir, "excluded_path"),
-            join_path(&dir, "not_excluded_path"),
-            join_path(&dir, "nested_dir/excluded_file.txt"),
-            join_path(&dir, "nested_dir_with_single_file/excluded_file.txt"),
-        ];
+            dir.join(".excluded_glob"),
+            dir.join("excluded_path"),
+            dir.join("not_excluded_path"),
+            dir.join("nested_dir/excluded_file.txt"),
+            dir.join("nested_dir_with_single_file/excluded_file.txt"),
+        ]
+        .map(|p| p.canonicalize().unwrap().to_str().unwrap().to_string())
+        .to_vec();
         result.sort();
 
-        assert_eq!(list.join("\r\n"), result.join("\r\n"));
+        assert_eq!(list, result);
     }
 
     #[test]
     fn it_check_if_directory_is_git() {
-        assert!(Git::is_git("./.git"));
+        assert!(Git::is_git(&current_dir().unwrap().join(".git")));
     }
 
     #[test]
     fn it_check_if_directory_is_not_git() {
-        assert!(!Git::is_git("./tests"));
+        assert!(!Git::is_git(&current_dir().unwrap().join("tests")));
+        assert!(!Git::is_git(&current_dir().unwrap().join("tests.git")));
     }
 }

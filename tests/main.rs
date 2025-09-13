@@ -3,37 +3,33 @@ extern crate tmbliss;
 #[path = "../src/test_utils.rs"]
 mod test_utils;
 
-use crate::test_utils::{join_path, path_to_string, unzip, TestDir};
+use crate::test_utils::{unzip, TestDir};
 
+use std::env::current_dir;
 use std::fs;
 
 use tmbliss::{Command, TMBliss, TimeMachine};
-use uuid::Uuid;
 
 #[test]
 fn test_run() {
-    let cwd = &path_to_string(&fs::canonicalize("./").unwrap());
+    let workspace = TestDir::new();
 
-    let zip = join_path(cwd, "test_assets/test_dir.zip");
-    let unzipdir = TestDir {
-        path: join_path(cwd, &format!("test_assets_{}", Uuid::new_v4())),
-    };
-    let dir = join_path(&unzipdir.path, "test_dir");
+    let zip = current_dir().unwrap().join("test_assets/test_dir.zip");
 
-    let excluded_path = join_path(&dir, "test_repo/excluded_path");
-    let not_excluded_glob = join_path(&dir, "test_repo/.excluded_glob");
-    let not_excluded_dir = join_path(&dir, "test_repo/not_excluded_path");
+    let excluded_path = workspace.join("test_dir/test_repo/excluded_path");
+    let not_excluded_glob = workspace.join("test_dir/test_repo/.excluded_glob");
+    let not_excluded_dir = workspace.join("test_dir/test_repo/not_excluded_path");
 
-    unzip(&zip, &unzipdir.path);
+    unzip(&zip, workspace.path());
 
     let command = Command::Run {
-        path: vec![dir],
+        path: vec![workspace.path().to_string_lossy().into_owned()],
         dry_run: false,
         allowlist_glob: vec![
             "**/.excluded_glob".to_string(),
             ".excluded_glob.*".to_string(),
         ],
-        allowlist_path: vec![not_excluded_dir.clone()],
+        allowlist_path: vec![not_excluded_dir.to_string_lossy().into_owned()],
         skip_glob: vec![],
         skip_path: vec![],
         skip_errors: true,
@@ -41,7 +37,7 @@ fn test_run() {
     };
     let result = TMBliss::run(command);
 
-    assert!(result.is_ok());
+    result.unwrap();
     assert!(TimeMachine::is_excluded(&excluded_path).unwrap());
     assert!(!TimeMachine::is_excluded(&not_excluded_glob).unwrap());
     assert!(!TimeMachine::is_excluded(&not_excluded_dir).unwrap());
@@ -49,18 +45,14 @@ fn test_run() {
 
 #[test]
 fn test_exclude_paths() {
-    let cwd = &path_to_string(&fs::canonicalize("./").unwrap());
+    let workspace = TestDir::new();
 
-    let zip = join_path(cwd, "test_assets/test_dir.zip");
-    let unzipdir = TestDir {
-        path: join_path(cwd, &format!("test_assets_{}", Uuid::new_v4())),
-    };
-    let file = join_path(
-        &unzipdir.path,
-        "test_dir/test_repo/path_that_should_be_excluded.txt",
-    );
+    let zip = current_dir().unwrap().join("test_assets/test_dir.zip");
+    let file = workspace
+        .path()
+        .join("test_dir/test_repo/path_that_should_be_excluded.txt");
 
-    unzip(&zip, &unzipdir.path);
+    unzip(&zip, workspace.path());
 
     let command = Command::Run {
         path: vec![],
@@ -70,48 +62,48 @@ fn test_exclude_paths() {
         skip_glob: vec![],
         skip_path: vec![],
         skip_errors: true,
-        exclude_path: vec![file.clone()],
+        exclude_path: vec![file.to_string_lossy().into_owned()],
     };
     let result = TMBliss::run(command);
 
-    assert!(result.is_ok());
+    result.unwrap();
     assert!(TimeMachine::is_excluded(&file).unwrap());
 }
 
 #[test]
 fn test_skip_errors() {
-    let cwd = &path_to_string(&fs::canonicalize("./").unwrap());
+    let cwd = current_dir().unwrap();
 
-    let dir = join_path(cwd, "test_assets");
+    let dir = cwd.join("test_assets");
 
-    let root_file = join_path(&dir, "root_file.txt");
+    let root_file = dir.join("root_file.txt");
 
     {
         let command = Command::Run {
-            path: vec![dir.clone()],
+            path: vec![dir.to_string_lossy().into_owned()],
             dry_run: false,
             allowlist_glob: vec!["**/.DS_Store".to_string()],
             allowlist_path: vec![],
             skip_glob: vec![],
             skip_path: vec![],
             skip_errors: true,
-            exclude_path: vec![root_file.clone()],
+            exclude_path: vec![root_file.to_string_lossy().into_owned()],
         };
         let result = TMBliss::run(command);
 
-        assert!(result.is_ok());
+        result.unwrap();
     }
 
     {
         let command = Command::Run {
-            path: vec![dir],
+            path: vec![dir.to_string_lossy().into_owned()],
             dry_run: false,
             allowlist_glob: vec!["**/.DS_Store".to_string()],
             allowlist_path: vec![],
             skip_glob: vec![],
             skip_path: vec![],
             skip_errors: false,
-            exclude_path: vec![root_file],
+            exclude_path: vec![root_file.to_string_lossy().into_owned()],
         };
         let result = TMBliss::run(command);
 
@@ -121,22 +113,19 @@ fn test_skip_errors() {
 
 #[test]
 fn test_reset() {
-    let cwd = &path_to_string(&fs::canonicalize("./").unwrap());
+    let workspace = TestDir::new();
 
-    let zip = join_path(cwd, "test_assets/test_dir.zip");
-    let unzipdir = TestDir {
-        path: join_path(cwd, &format!("test_assets_{}", Uuid::new_v4())),
-    };
-    let dir = join_path(&unzipdir.path, "test_dir");
+    let zip = current_dir().unwrap().join("test_assets/test_dir.zip");
+    let dir = workspace.join("test_dir");
 
-    let excluded_path = join_path(&dir, "test_repo/excluded_path");
-    let not_excluded_glob = join_path(&dir, "test_repo/.excluded_glob");
-    let not_excluded_path = join_path(&dir, "test_repo/not_excluded_path");
+    let excluded_path = dir.join("test_repo/excluded_path");
+    let not_excluded_glob = dir.join("test_repo/.excluded_glob");
+    let not_excluded_path = dir.join("test_repo/not_excluded_path");
 
-    unzip(&zip, &unzipdir.path);
+    unzip(&zip, workspace.path());
 
     TMBliss::run(Command::Run {
-        path: vec![dir.clone()],
+        path: vec![dir.to_string_lossy().into_owned()],
         dry_run: false,
         allowlist_glob: vec![],
         allowlist_path: vec![],
@@ -152,10 +141,10 @@ fn test_reset() {
     assert!(TimeMachine::is_excluded(&not_excluded_path).unwrap());
 
     TMBliss::run(Command::Reset {
-        path: dir,
+        path: dir.to_string_lossy().into_owned(),
         dry_run: false,
         allowlist_glob: vec!["**/.excluded_glob".to_string()],
-        allowlist_path: vec![not_excluded_path.clone()],
+        allowlist_path: vec![not_excluded_path.to_string_lossy().into_owned()],
     })
     .unwrap();
 

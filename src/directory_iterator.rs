@@ -6,44 +6,35 @@ use std::{
 use anyhow::{anyhow, Context, Result};
 
 pub struct DirectoryIterator<'a> {
-    pub path: &'a str,
-    pub exclude: Option<&'a dyn Fn(&str) -> bool>,
+    pub path: &'a Path,
+    pub exclude: Option<&'a dyn for<'b> Fn(&'b Path) -> bool>,
 }
 
 impl DirectoryIterator<'_> {
-    pub fn list(&self) -> Result<Vec<String>> {
+    pub fn list(&self) -> Result<Vec<PathBuf>> {
         let mut paths = Vec::new();
 
-        let path = Path::new(&self.path);
-
-        if !path.is_dir() {
+        if !self.path.is_dir() {
             return Err(anyhow!("Path is not a directory"));
         }
 
-        for entry in
-            fs::read_dir(self.path).with_context(|| format!("Can't read dir {}", self.path))?
-        {
-            let entry = entry?;
-            let path = self.try_canonicalize(entry.path());
-            let pathstr = path
-                .to_str()
-                .ok_or(anyhow!("Could not convert path to string"))?;
+        let entries = fs::read_dir(self.path)
+            .with_context(|| format!("Can't read dir {}", self.path.display()))?;
+
+        for entry in entries {
+            let entry = entry?.path();
 
             if let Some(excluder) = self.exclude {
-                if excluder(pathstr) {
+                if excluder(&entry) {
                     continue;
                 }
             }
 
-            if !path.is_symlink() && path.is_dir() {
-                paths.push(pathstr.to_string());
+            if !entry.is_symlink() && entry.is_dir() {
+                paths.push(entry.to_path_buf());
             }
         }
 
         Ok(paths)
-    }
-
-    fn try_canonicalize(&self, path: PathBuf) -> PathBuf {
-        path.canonicalize().unwrap_or(path)
     }
 }

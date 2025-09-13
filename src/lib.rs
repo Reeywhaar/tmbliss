@@ -9,12 +9,12 @@ mod logger;
 mod recursive_directory_iterator;
 mod time_machine;
 
-use std::cell::RefCell;
 use std::collections::HashSet;
 use std::path::Path;
 use std::rc::Rc;
+use std::{cell::RefCell, path::PathBuf};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use glob_match::glob_match;
 use recursive_directory_iterator::RecursiveDirectoryIterator;
 
@@ -126,7 +126,7 @@ impl TMBliss {
                 allowlist_glob,
                 allowlist_path,
             } => Self::reset_files(
-                &path,
+                Path::new(&path),
                 dry_run,
                 allowlist_glob,
                 allowlist_path,
@@ -137,7 +137,7 @@ impl TMBliss {
                 allowlist_glob,
                 allowlist_path,
             } => Self::reset_files(
-                &path,
+                Path::new(&path),
                 true,
                 allowlist_glob,
                 allowlist_path,
@@ -151,28 +151,33 @@ impl TMBliss {
     }
 
     fn mark_files(conf: Conf, logger: &Logger) -> Result<()> {
-        let processed: Rc<RefCell<HashSet<String>>> = Rc::new(RefCell::new(HashSet::new()));
+        let processed: Rc<RefCell<HashSet<PathBuf>>> = Rc::new(RefCell::new(HashSet::new()));
 
-        let excluder = |path: &str| -> bool {
+        let excluder = |path: &Path| -> bool {
             if processed.borrow().contains(path) {
                 return true;
             }
 
             if Git::is_git(path) {
-                processed.borrow_mut().insert(path.to_string());
+                processed.borrow_mut().insert(path.to_owned());
                 return true;
             }
 
             for exclusion in &conf.skip_glob {
-                if glob_match(exclusion, path) {
-                    processed.borrow_mut().insert(path.to_string());
+                let strpath = path.to_str();
+                if strpath.is_none() {
+                    continue;
+                }
+                let strpath = strpath.unwrap();
+                if glob_match(exclusion, strpath) {
+                    processed.borrow_mut().insert(path.to_owned());
                     return true;
                 }
             }
 
             for exclusion in &conf.skip_path {
-                if Self::is_inside(exclusion, path) {
-                    processed.borrow_mut().insert(path.to_string());
+                if Self::is_inside(Path::new(exclusion), path) {
+                    processed.borrow_mut().insert(path.to_owned());
                     return true;
                 }
             }
@@ -180,40 +185,46 @@ impl TMBliss {
             false
         };
 
-        for item in conf.exclude_paths.clone() {
-            Self::process(item, &conf, processed.clone(), logger)?;
+        for item in &conf.exclude_paths {
+            Self::process(Path::new(item), &conf, processed.clone(), logger)?;
         }
 
         for path in &conf.paths {
-            Self::process_directory(path, &conf, Some(&excluder), processed.clone(), logger)
-                .with_context(|| format!("Can't process directory {}", path))?;
+            Self::process_directory(
+                Path::new(path),
+                &conf,
+                Some(&excluder),
+                processed.clone(),
+                logger,
+            )
+            .with_context(|| format!("Can't process directory {}", path))?;
         }
 
         Ok(())
     }
 
     fn reset_files(
-        path: &str,
+        path: &Path,
         dry_run: bool,
         allowlist_glob: Vec<String>,
         allowlist_path: Vec<String>,
         logger: &Logger,
     ) -> Result<()> {
         let iterator = RecursiveDirectoryIterator {
-            path: path.to_string(),
+            path,
             op: &|path| {
                 for exclusion in &allowlist_path {
-                    if Self::is_inside(exclusion, path) {
+                    if Self::is_inside(Path::new(exclusion), path) {
                         return Ok(true);
                     }
                 }
                 for exclusion in &allowlist_glob {
-                    if glob_match(exclusion, path) {
+                    if glob_match(exclusion, &path.to_string_lossy()) {
                         return Ok(true);
                     }
                 }
                 if TimeMachine::is_excluded(path)? {
-                    logger.log("excluded", path);
+                    logger.log("excluded", &path.to_string_lossy());
                     if !dry_run {
                         TimeMachine::remove_exclusion(path)?
                     }
@@ -225,31 +236,31 @@ impl TMBliss {
         iterator.iterate()
     }
 
-    fn get_git_excludes(path: &str, conf: &Conf) -> Vec<String> {
+    fn get_git_excludes(path: &Path, conf: &Conf) -> Vec<PathBuf> {
         let git = Git {
-            path: path.to_string(),
+            path: path.to_path_buf(),
         };
         git.get_ignores_list()
             .unwrap_or_default()
             .into_iter()
             .filter(|item| {
                 for exclusion in &conf.skip_path {
-                    if Self::is_inside(exclusion, item) {
+                    if Self::is_inside(Path::new(exclusion), item) {
                         return false;
                     }
                 }
                 for exclusion in &conf.skip_glob {
-                    if glob_match(exclusion, item) {
+                    if glob_match(exclusion, &item.to_string_lossy()) {
                         return false;
                     }
                 }
                 for exclusion in &conf.allowlist_path {
-                    if Self::is_inside(exclusion, item) {
+                    if Self::is_inside(Path::new(exclusion), item) {
                         return false;
                     }
                 }
                 for exclusion in &conf.allowlist_glob {
-                    if glob_match(exclusion, item) {
+                    if glob_match(exclusion, &item.to_string_lossy()) {
                         return false;
                     }
                 }
@@ -259,30 +270,33 @@ impl TMBliss {
     }
 
     fn process(
-        item: String,
+        item: &Path,
         conf: &Conf,
-        processed: Rc<RefCell<HashSet<String>>>,
+        processed: Rc<RefCell<HashSet<PathBuf>>>,
         logger: &Logger,
     ) -> Result<()> {
-        if processed.borrow().contains(&item) {
+        if processed.borrow().contains(item) {
             return Ok(());
         }
 
-        processed.borrow_mut().insert(item.clone());
+        processed.borrow_mut().insert(item.to_owned());
 
-        let check_result = TimeMachine::is_excluded(&item);
+        let check_result = TimeMachine::is_excluded(item);
         match check_result {
             Ok(is_excluded) => {
                 if is_excluded {
-                    logger.log("excluded", &item);
+                    logger.log("excluded", &item.to_string_lossy());
                     return Ok(());
                 } else {
-                    logger.log("new", &item);
+                    logger.log("new", &item.to_string_lossy());
                 }
             }
             Err(e) => {
                 if conf.skip_errors {
-                    logger.log("error_checking", &[item.clone(), e.to_string()].join(", "));
+                    logger.log(
+                        "error_checking",
+                        &[item.to_string_lossy().as_ref(), &e.to_string()].join(", "),
+                    );
                     return Ok(());
                 } else {
                     return Err(e);
@@ -291,12 +305,15 @@ impl TMBliss {
         }
 
         if !conf.dry_run {
-            let result = TimeMachine::add_exclusion(&item);
+            let result = TimeMachine::add_exclusion(item);
             match result {
                 Ok(_) => {}
                 Err(e) => {
                     if conf.skip_errors {
-                        logger.log("error_excluding", &[item.clone(), e.to_string()].join(", "));
+                        logger.log(
+                            "error_excluding",
+                            &[item.to_string_lossy().as_ref(), &e.to_string()].join(", "),
+                        );
                     } else {
                         return Err(e.into());
                     }
@@ -307,11 +324,11 @@ impl TMBliss {
         Ok(())
     }
 
-    fn is_inside(root: &str, child: &str) -> bool {
-        let root = Path::new(root)
+    fn is_inside(root: &Path, child: &Path) -> bool {
+        let root = root
             .canonicalize()
             .unwrap_or_else(|_| Path::new(root).to_path_buf());
-        let child = Path::new(child)
+        let child = child
             .canonicalize()
             .unwrap_or_else(|_| Path::new(child).to_path_buf());
 
@@ -319,10 +336,10 @@ impl TMBliss {
     }
 
     fn process_directory(
-        path: &str,
+        path: &Path,
         conf: &Conf,
-        excluder: Option<&dyn Fn(&str) -> bool>,
-        processed: Rc<RefCell<HashSet<String>>>,
+        excluder: Option<&dyn Fn(&Path) -> bool>,
+        processed: Rc<RefCell<HashSet<PathBuf>>>,
         logger: &Logger,
     ) -> Result<()> {
         if let Some(excluder) = excluder {
@@ -332,26 +349,24 @@ impl TMBliss {
         }
 
         if TimeMachine::is_excluded(path)? {
-            Self::process(
-                Path::new(path)
-                    .canonicalize()
-                    .with_context(|| format!("Can't canonicalize path {}", path))?
-                    .to_str()
-                    .ok_or(anyhow!("Can't convert path {} to string", path))?
-                    .to_string(),
-                conf,
-                processed,
-                logger,
-            )
-            .with_context(|| format!("Can't process path {}", path))?;
+            Self::process(path, conf, processed, logger)
+                .with_context(|| format!("Can't process path {}", path.display()))?;
             return Ok(());
         }
 
         let excludes = Self::get_git_excludes(path, conf);
 
         for item in excludes.clone() {
-            Self::process(item, conf, processed.clone(), logger)
-                .with_context(|| format!("Can't process paths {}", excludes.join(", ")))?;
+            Self::process(&item, conf, processed.clone(), logger).with_context(|| {
+                format!(
+                    "Can't process paths {}",
+                    excludes
+                        .iter()
+                        .map(|p| p.to_string_lossy())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            })?;
         }
 
         let directory_iterator = DirectoryIterator {
@@ -360,11 +375,11 @@ impl TMBliss {
         };
         let directories = directory_iterator
             .list()
-            .with_context(|| format!("Can't list directory {}", path))?;
+            .with_context(|| format!("Can't list directory {}", path.display()))?;
 
         for path in directories {
             Self::process_directory(&path, conf, excluder, processed.clone(), logger)
-                .with_context(|| format!("Can't process directory {}", path))?;
+                .with_context(|| format!("Can't process directory {}", path.display()))?;
         }
 
         Ok(())

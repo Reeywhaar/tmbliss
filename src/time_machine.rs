@@ -1,4 +1,4 @@
-use std::{error::Error, fmt::Display, process::Command};
+use std::{error::Error, fmt::Display, path::Path, process::Command};
 
 use anyhow::{anyhow, Context, Result};
 use regex::Regex;
@@ -6,7 +6,7 @@ use regex::Regex;
 pub struct TimeMachine {}
 
 impl TimeMachine {
-    pub fn add_exclusion(path: &str) -> Result<(), TimeMachineError> {
+    pub fn add_exclusion(path: &Path) -> Result<(), TimeMachineError> {
         let mut binding = Command::new("/usr/bin/tmutil");
         let command = binding.arg("addexclusion").arg(path);
 
@@ -25,7 +25,7 @@ impl TimeMachine {
         Ok(())
     }
 
-    pub fn remove_exclusion(path: &str) -> Result<(), TimeMachineError> {
+    pub fn remove_exclusion(path: &Path) -> Result<(), TimeMachineError> {
         let mut binding = Command::new("/usr/bin/tmutil");
         let command = binding.arg("removeexclusion").arg(path);
 
@@ -44,7 +44,7 @@ impl TimeMachine {
         Ok(())
     }
 
-    pub fn is_excluded(path: &str) -> Result<bool> {
+    pub fn is_excluded(path: &Path) -> Result<bool> {
         let result = Command::new("/usr/bin/xattr").arg(path).output()?;
 
         if !result.status.success() {
@@ -114,18 +114,16 @@ mod tests {
     use assert_matches::assert_matches;
     use uuid::Uuid;
 
+    use crate::test_utils::TestDir;
+
     use super::*;
 
     use std::fs::{self, File};
 
     #[test]
     fn it_sets_xattr() {
-        let cwd = fs::canonicalize("./").unwrap();
-        let pathstr = cwd
-            .join(format!("./text-{}.txt", Uuid::new_v4()))
-            .to_str()
-            .unwrap()
-            .to_string();
+        let workspace = TestDir::new();
+        let pathstr = workspace.join(format!("./text-{}.txt", Uuid::new_v4()));
         File::create(pathstr.clone()).unwrap();
         TimeMachine::add_exclusion(&pathstr).unwrap();
 
@@ -136,7 +134,7 @@ mod tests {
 
     #[test]
     fn it_throws_inaccessible_if_cant_set_xattr() {
-        let path = "./test_assets/root_file.txt";
+        let path = Path::new("./test_assets/root_file.txt");
         let result = TimeMachine::add_exclusion(path);
 
         assert!(!TimeMachine::is_excluded(path).unwrap());
@@ -145,7 +143,7 @@ mod tests {
 
     #[test]
     fn it_throws_not_found_if_cant_set_xattr() {
-        let path = "./test_assets/not_a_file.txt";
+        let path = Path::new("./test_assets/not_a_file.txt");
         let result = TimeMachine::add_exclusion(path);
 
         assert_matches!(result, Err(TimeMachineError::FileNotFound));
@@ -154,11 +152,7 @@ mod tests {
     #[test]
     fn it_removes_xattr() {
         let cwd = fs::canonicalize("./").unwrap();
-        let pathstr = cwd
-            .join(format!("./text-{}.txt", Uuid::new_v4()))
-            .to_str()
-            .unwrap()
-            .to_string();
+        let pathstr = cwd.join(format!("./text-{}.txt", Uuid::new_v4()));
         File::create(pathstr.clone()).unwrap();
         TimeMachine::add_exclusion(&pathstr).unwrap();
 
@@ -173,7 +167,7 @@ mod tests {
 
     #[test]
     fn it_throws_inaccessible_if_cant_remove_xattr() {
-        let path = "./test_assets/root_file_excluded.txt";
+        let path = Path::new("./test_assets/root_file_excluded.txt");
         let result = TimeMachine::remove_exclusion(path);
 
         assert!(TimeMachine::is_excluded(path).unwrap());
@@ -182,7 +176,7 @@ mod tests {
 
     #[test]
     fn it_throws_not_found_if_cant_remove_xattr() {
-        let path = "./test_assets/not_a_file.txt";
+        let path = Path::new("./test_assets/not_a_file.txt");
         let result = TimeMachine::remove_exclusion(path);
 
         assert_matches!(result, Err(TimeMachineError::FileNotFound));
