@@ -1,101 +1,63 @@
-use std::{error::Error, fmt::Display, path::Path, process::Command};
+use std::{error::Error, fmt::Display, path::Path};
 
-use anyhow::{anyhow, Context, Result};
-use regex::Regex;
+use anyhow::Result;
+
+use crate::constants::TMUTIL_ATTR;
 
 pub struct TimeMachine {}
 
 impl TimeMachine {
     pub fn add_exclusion(path: &Path) -> Result<(), TimeMachineError> {
-        let mut binding = Command::new("/usr/bin/tmutil");
-        let command = binding.arg("addexclusion").arg(path);
-
-        let output = command
-            .output()
-            .with_context(|| "Failed to execute tmutil command")
-            .map_err(|e| TimeMachineError::Unknown(e.to_string()))?;
-
-        if !output.status.success() {
-            let output = output.stderr;
-
-            let output_string = String::from_utf8_lossy(&output);
-
-            return Err(Self::parse_error(&output_string));
-        }
-
-        Ok(())
+        xattr::set(path, TMUTIL_ATTR, b"1").map_err(Self::parse_error)
     }
 
     pub fn remove_exclusion(path: &Path) -> Result<(), TimeMachineError> {
-        let mut binding = Command::new("/usr/bin/tmutil");
-        let command = binding.arg("removeexclusion").arg(path);
-
-        let output = command
-            .output()
-            .map_err(|e| TimeMachineError::Unknown(e.to_string()))?;
-
-        if !output.status.success() {
-            let output = output.stderr;
-
-            let output_string = String::from_utf8_lossy(&output);
-
-            return Err(Self::parse_error(&output_string));
-        }
-
-        Ok(())
+        xattr::remove(path, TMUTIL_ATTR).map_err(Self::parse_error)
     }
 
-    pub fn is_excluded(path: &Path) -> Result<bool> {
-        let result = Command::new("/usr/bin/xattr")
-            .arg(path)
-            .output()
-            .with_context(|| "Failed to execute xattr command")?;
-
-        if !result.status.success() {
-            return Err(anyhow!(String::from_utf8_lossy(&result.stderr).to_string()));
-        }
-
-        Ok(String::from_utf8(result.stdout)
-            .with_context(|| "Cannot convert output to string")?
-            .lines()
-            .any(|line| line == "com.apple.metadata:com_apple_backup_excludeItem"))
+    pub fn is_excluded(path: &Path) -> Result<bool, TimeMachineError> {
+        Ok(xattr::get(path, TMUTIL_ATTR)
+            .map_err(Self::parse_error)?
+            .is_some())
     }
 
-    fn parse_status_code(output: &str) -> isize {
-        let re = Regex::new(r"Error \((.*)\) while attempting").unwrap();
-        if let Some(captures) = re.captures(output) {
-            if let Some(capture) = captures.get(1) {
-                return capture.as_str().parse::<isize>().unwrap_or(0);
-            }
-        }
-        0
-    }
-
-    fn parse_error(output: &str) -> TimeMachineError {
-        let status = Self::parse_status_code(output);
-        match status {
-            -43 => TimeMachineError::FileNotFound,
-            100002 => TimeMachineError::FileNotFound,
-            -50 => TimeMachineError::FileInaccessible,
-            -20 => TimeMachineError::FileInaccessible,
-            status => TimeMachineError::Unknown(format!("Unknown error with status {}", status)),
+    fn parse_error(err: std::io::Error) -> TimeMachineError {
+        match err.raw_os_error() {
+            Some(2) => TimeMachineError::FileNotFound(Some(Box::new(err))),
+            Some(13) => TimeMachineError::FileInaccessible(Some(Box::new(err))),
+            status => TimeMachineError::Unknown(
+                match status {
+                    Some(code) => format!("Error with status code {}", code),
+                    None => "Error with unknown status code".to_string(),
+                },
+                Some(Box::new(err)),
+            ),
         }
     }
 }
 
 #[derive(Debug)]
 pub enum TimeMachineError {
-    FileNotFound,
-    FileInaccessible,
-    Unknown(String),
+    FileNotFound(Option<Box<std::io::Error>>),
+    FileInaccessible(Option<Box<std::io::Error>>),
+    Unknown(String, Option<Box<std::io::Error>>),
 }
 
 impl Error for TimeMachineError {
     fn description(&self) -> &str {
         match &self {
-            TimeMachineError::FileNotFound => "File not found",
-            TimeMachineError::FileInaccessible => "File inaccessible",
-            TimeMachineError::Unknown(_description) => "Unknown error",
+            TimeMachineError::FileNotFound(_) => "File not found",
+            TimeMachineError::FileInaccessible(_) => "File inaccessible",
+            TimeMachineError::Unknown(_description, _) => "Unknown error",
+        }
+    }
+
+    fn cause(&self) -> Option<&dyn Error> {
+        match &self {
+            TimeMachineError::FileNotFound(Some(e)) => Some(e.as_ref()),
+            TimeMachineError::FileInaccessible(Some(e)) => Some(e.as_ref()),
+            TimeMachineError::Unknown(_, Some(e)) => Some(e.as_ref()),
+            _ => None,
         }
     }
 }
@@ -103,9 +65,11 @@ impl Error for TimeMachineError {
 impl Display for TimeMachineError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match &self {
-            TimeMachineError::FileNotFound => write!(f, "File not found"),
-            TimeMachineError::FileInaccessible => write!(f, "File inaccessible"),
-            TimeMachineError::Unknown(description) => write!(f, "Unknown error: {}", description),
+            TimeMachineError::FileNotFound(_) => write!(f, "File not found"),
+            TimeMachineError::FileInaccessible(_) => write!(f, "File inaccessible"),
+            TimeMachineError::Unknown(description, _) => {
+                write!(f, "Unknown error: {}", description)
+            }
         }
     }
 }
@@ -139,7 +103,7 @@ mod tests {
         let result = TimeMachine::add_exclusion(path);
 
         assert!(!TimeMachine::is_excluded(path).unwrap());
-        assert_matches!(result, Err(TimeMachineError::FileInaccessible));
+        assert_matches!(result, Err(TimeMachineError::FileInaccessible(_)));
     }
 
     #[test]
@@ -147,7 +111,7 @@ mod tests {
         let path = Path::new("./test_assets/not_a_file.txt");
         let result = TimeMachine::add_exclusion(path);
 
-        assert_matches!(result, Err(TimeMachineError::FileNotFound));
+        assert_matches!(result, Err(TimeMachineError::FileNotFound(_)));
     }
 
     #[test]
@@ -172,7 +136,7 @@ mod tests {
         let result = TimeMachine::remove_exclusion(path);
 
         assert!(TimeMachine::is_excluded(path).unwrap());
-        assert_matches!(result, Err(TimeMachineError::FileInaccessible));
+        assert_matches!(result, Err(TimeMachineError::FileInaccessible(_)));
     }
 
     #[test]
@@ -180,6 +144,6 @@ mod tests {
         let path = Path::new("./test_assets/not_a_file.txt");
         let result = TimeMachine::remove_exclusion(path);
 
-        assert_matches!(result, Err(TimeMachineError::FileNotFound));
+        assert_matches!(result, Err(TimeMachineError::FileNotFound(_)));
     }
 }

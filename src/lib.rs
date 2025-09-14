@@ -3,6 +3,7 @@ pub mod test_utils;
 
 mod args;
 mod conf;
+mod constants;
 mod directory_iterator;
 mod git;
 mod logger;
@@ -299,7 +300,7 @@ impl TMBliss {
                     );
                     return Ok(());
                 } else {
-                    return Err(e);
+                    return Err(e.into());
                 }
             }
         }
