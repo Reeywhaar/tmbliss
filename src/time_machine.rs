@@ -155,7 +155,7 @@ mod tests {
 
     #[test]
     fn it_removes_xattr() {
-        let cwd = fs::canonicalize("./").unwrap();
+        let cwd = TestDir::new();
         let pathstr = cwd.join(format!("./text-{}.txt", Uuid::new_v4()));
         File::create(pathstr.clone()).unwrap();
         TimeMachine::add_exclusion(&pathstr).unwrap();
