@@ -55,13 +55,10 @@ impl TimeMachine {
             return Err(anyhow!(String::from_utf8_lossy(&result.stderr).to_string()));
         }
 
-        let attrs: Vec<String> = String::from_utf8(result.stdout)
+        Ok(String::from_utf8(result.stdout)
             .with_context(|| "Cannot convert output to string")?
             .lines()
-            .map(String::from)
-            .collect();
-
-        Ok(attrs.contains(&"com.apple.metadata:com_apple_backup_excludeItem".to_string()))
+            .any(|line| line == "com.apple.metadata:com_apple_backup_excludeItem"))
     }
 
     fn parse_status_code(output: &str) -> isize {
