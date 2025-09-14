@@ -16,6 +16,9 @@ impl TestDir {
         let s = Self {
             path: temp_dir().join(format!("test_assets_{}", Uuid::new_v4())),
         };
+        if s.path.exists() {
+            fs::remove_dir_all(&s.path).unwrap();
+        }
         fs::create_dir_all(&s.path).unwrap();
         s
     }
