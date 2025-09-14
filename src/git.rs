@@ -27,7 +27,6 @@ impl Git {
         let mut ignored: Vec<PathBuf> = vec![];
 
         fn visitor(
-            root_path: &Path,
             path: &Path,
             gitignore: &ignore::gitignore::Gitignore,
             ignored: &mut Vec<PathBuf>,
@@ -43,13 +42,13 @@ impl Git {
             if is_dir {
                 for entry in fs::read_dir(path)? {
                     let entry = entry?;
-                    visitor(root_path, &entry.path(), gitignore, ignored)?;
+                    visitor(&entry.path(), gitignore, ignored)?;
                 }
             }
             Ok(())
         }
 
-        visitor(&self.path, &self.path, &gitignore, &mut ignored)?;
+        visitor(&self.path, &gitignore, &mut ignored)?;
 
         ignored.sort();
         Ok(ignored)
