@@ -6,7 +6,6 @@ mod test_utils;
 use crate::test_utils::{unzip, TestDir};
 
 use std::env::current_dir;
-use std::fs;
 
 use tmbliss::{Command, TMBliss, TimeMachine};
 

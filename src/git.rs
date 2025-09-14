@@ -1,9 +1,9 @@
 use std::{
+    fs,
     path::{Path, PathBuf},
-    process::Command,
 };
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 
 pub struct Git {
     pub path: PathBuf,
@@ -12,61 +12,52 @@ pub struct Git {
 impl Git {
     /// Lists all files that are ignored by git
     pub fn get_ignores_list(&self) -> Result<Vec<PathBuf>> {
-        let out = Command::new("/usr/bin/git")
-            .current_dir(&self.path)
-            .arg("ls-files")
-            .arg("--directory") // Do not list contained files of ignored directories
-            .arg("--exclude-standard") // Also use `.git/info/exclude` and global `.gitignore` files
-            .arg("--ignored") // List ignored files
-            .arg("--others") // Include untracked files
-            .arg("-z") // Do not encode "unusual" characters (e.g. "ä" is normally listed as "\303\244")
-            .output()?;
+        if !self.path.is_dir() {
+            return Err(anyhow::anyhow!("Path is not a directory"));
+        }
 
-        let output =
-            String::from_utf8(out.stdout).with_context(|| "Cannot create string from output")?;
+        let mut gitignore_builder = ignore::gitignore::GitignoreBuilder::new(&self.path);
+        gitignore_builder.add(self.path.join(".gitignore"));
+        let gitignore = gitignore_builder.build_global();
+        if gitignore.1.is_some() {
+            return Err(anyhow::anyhow!(gitignore.1.unwrap()));
+        }
+        let gitignore = gitignore.0;
 
-        let mut output: Vec<PathBuf> = output
-            .split('\0')
-            .filter(|p| !p.is_empty())
-            .filter(|p| !p.starts_with("../"))
-            .map(|v| self.join_path(v))
-            .collect::<Result<Vec<PathBuf>>>()?;
+        let mut ignored: Vec<PathBuf> = vec![];
 
-        output.sort();
+        fn visitor(
+            root_path: &Path,
+            path: &Path,
+            gitignore: &ignore::gitignore::Gitignore,
+            ignored: &mut Vec<PathBuf>,
+        ) -> Result<()> {
+            let is_dir = path.is_dir();
+            if path.ends_with(".git") {
+                return Ok(());
+            }
+            if gitignore.matched(path, is_dir).is_ignore() {
+                ignored.push(path.canonicalize()?);
+                return Ok(());
+            }
+            if is_dir {
+                for entry in fs::read_dir(path)? {
+                    let entry = entry?;
+                    visitor(root_path, &entry.path(), gitignore, ignored)?;
+                }
+            }
+            Ok(())
+        }
 
-        let output = self
-            .remove_roots(output)
-            .iter()
-            .map(|p| p.canonicalize().unwrap())
-            .collect::<Vec<PathBuf>>();
+        visitor(&self.path, &self.path, &gitignore, &mut ignored)?;
 
-        Ok(output)
+        ignored.sort();
+        Ok(ignored)
     }
 
     /// Checks if a directory is a git service directory (".git")
     pub fn is_git(path: &Path) -> bool {
         path.ends_with(".git")
-    }
-
-    fn join_path(&self, path: &str) -> Result<PathBuf> {
-        Ok(self.path.join(path))
-    }
-
-    fn remove_roots(&self, list: Vec<PathBuf>) -> Vec<PathBuf> {
-        let mut output: Vec<PathBuf> = Vec::new();
-
-        'outer: for i in 0..list.len() {
-            let item = &list[i];
-            let remain = list[i + 1..].to_vec();
-            for subitem in remain {
-                if subitem.starts_with(item) {
-                    continue 'outer;
-                }
-            }
-            output.push(item.clone());
-        }
-
-        output
     }
 }
 
