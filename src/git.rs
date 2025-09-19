@@ -75,16 +75,11 @@ mod tests {
         let zip = current_dir().unwrap().join("test_assets/test_dir.zip");
         let dir = workspace.join("test_dir/test_repo");
 
-        unzip(&zip, workspace.path());
+        unzip(&zip, workspace.path()).unwrap();
 
         let git = Git { path: dir.clone() };
 
-        let mut list = git
-            .get_ignores_list()
-            .unwrap()
-            .iter()
-            .map(|p| p.to_str().unwrap().to_string())
-            .collect::<Vec<String>>();
+        let mut list = git.get_ignores_list().unwrap();
         list.sort();
 
         let mut result = [
@@ -94,7 +89,7 @@ mod tests {
             dir.join("nested_dir/excluded_file.txt"),
             dir.join("nested_dir_with_single_file/excluded_file.txt"),
         ]
-        .map(|p| p.canonicalize().unwrap().to_str().unwrap().to_string())
+        .map(|p| p.canonicalize().unwrap())
         .to_vec();
         result.sort();
 

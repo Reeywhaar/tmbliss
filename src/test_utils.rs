@@ -4,6 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use anyhow::Result;
 use uuid::Uuid;
 
 pub struct TestDir {
@@ -38,12 +39,11 @@ impl Drop for TestDir {
     }
 }
 
-pub fn unzip(file: &Path, dir: &Path) {
-    let result = std::process::Command::new("unzip")
+pub fn unzip(file: &Path, dir: &Path) -> Result<()> {
+    std::process::Command::new("unzip")
         .arg(file)
         .arg("-d")
         .arg(dir)
-        .output()
-        .unwrap();
-    assert!(result.status.success());
+        .output()?;
+    Ok(())
 }

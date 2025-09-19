@@ -154,7 +154,7 @@ fn test_run() {
     let not_excluded_glob = workspace.join("test_dir/test_repo/.excluded_glob");
     let not_excluded_dir = workspace.join("test_dir/test_repo/not_excluded_path");
 
-    unzip(&zip, workspace.path());
+    unzip(&zip, workspace.path()).unwrap();
 
     let command = Command::Run {
         path: vec![workspace.path().to_string_lossy().into_owned()],
@@ -186,7 +186,7 @@ fn test_exclude_paths() {
         .path()
         .join("test_dir/test_repo/path_that_should_be_excluded.txt");
 
-    unzip(&zip, workspace.path());
+    unzip(&zip, workspace.path()).unwrap();
 
     let command = Command::Run {
         path: vec![],
@@ -256,7 +256,7 @@ fn test_reset() {
     let not_excluded_glob = dir.join("test_repo/.excluded_glob");
     let not_excluded_path = dir.join("test_repo/not_excluded_path");
 
-    unzip(&zip, workspace.path());
+    unzip(&zip, workspace.path()).unwrap();
 
     TMBliss::run(Command::Run {
         path: vec![dir.to_string_lossy().into_owned()],

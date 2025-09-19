@@ -48,7 +48,7 @@ mod tests {
         let zip = current_dir().unwrap().join("test_assets/test_dir.zip");
         let dir = workspace.path().join("test_dir/test_repo");
 
-        unzip(&zip, workspace.path());
+        unzip(&zip, workspace.path()).unwrap();
 
         let paths = Rc::new(RefCell::new(Vec::<PathBuf>::new()));
 
