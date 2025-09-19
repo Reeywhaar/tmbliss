@@ -2,13 +2,8 @@ extern crate tmbliss;
 
 #[path = "../src/filetree.rs"]
 mod filetree;
-#[path = "../src/test_utils.rs"]
-mod test_utils;
 
-use crate::{
-    filetree::{FileTree, FileTreeItem},
-    test_utils::{unzip, TestDir},
-};
+use crate::filetree::{FileTree, FileTreeItem};
 
 use std::env::current_dir;
 use test_case::test_case;
@@ -146,18 +141,17 @@ fn test_tmbliss_glob_exclusion_2() {
 
 #[test]
 fn test_run() {
-    let workspace = TestDir::new();
+    let filetree = FileTree::new_test_repo();
 
-    let zip = current_dir().unwrap().join("test_assets/test_dir.zip");
+    let fmap = filetree.create();
+    let workspace = fmap.get("__workspace").unwrap();
 
-    let excluded_path = workspace.join("test_dir/test_repo/excluded_path");
-    let not_excluded_glob = workspace.join("test_dir/test_repo/.excluded_glob");
-    let not_excluded_dir = workspace.join("test_dir/test_repo/not_excluded_path");
-
-    unzip(&zip, workspace.path()).unwrap();
+    let excluded_path = fmap.get("excluded_path").unwrap();
+    let not_excluded_glob = fmap.get(".excluded_glob").unwrap();
+    let not_excluded_dir = fmap.get("not_excluded_path").unwrap();
 
     let command = Command::Run {
-        path: vec![workspace.path().to_string_lossy().into_owned()],
+        path: vec![workspace.to_string_lossy().into_owned()],
         dry_run: false,
         allowlist_glob: vec![
             "**/.excluded_glob".to_string(),
@@ -172,21 +166,18 @@ fn test_run() {
     let result = TMBliss::run(command);
 
     result.unwrap();
-    assert!(TimeMachine::is_excluded(&excluded_path).unwrap());
-    assert!(!TimeMachine::is_excluded(&not_excluded_glob).unwrap());
-    assert!(!TimeMachine::is_excluded(&not_excluded_dir).unwrap());
+    assert!(TimeMachine::is_excluded(excluded_path).unwrap());
+    assert!(!TimeMachine::is_excluded(not_excluded_glob).unwrap());
+    assert!(!TimeMachine::is_excluded(not_excluded_dir).unwrap());
 }
 
 #[test]
 fn test_exclude_paths() {
-    let workspace = TestDir::new();
+    let filetree = FileTree::new_test_repo();
 
-    let zip = current_dir().unwrap().join("test_assets/test_dir.zip");
-    let file = workspace
-        .path()
-        .join("test_dir/test_repo/path_that_should_be_excluded.txt");
+    let fmap = filetree.create();
 
-    unzip(&zip, workspace.path()).unwrap();
+    let file = fmap.get("path_that_should_be_excluded.txt").unwrap();
 
     let command = Command::Run {
         path: vec![],
@@ -201,7 +192,7 @@ fn test_exclude_paths() {
     let result = TMBliss::run(command);
 
     result.unwrap();
-    assert!(TimeMachine::is_excluded(&file).unwrap());
+    assert!(TimeMachine::is_excluded(file).unwrap());
 }
 
 #[test]
@@ -247,16 +238,15 @@ fn test_skip_errors() {
 
 #[test]
 fn test_reset() {
-    let workspace = TestDir::new();
+    let filetree = FileTree::new_test_repo();
 
-    let zip = current_dir().unwrap().join("test_assets/test_dir.zip");
-    let dir = workspace.join("test_dir");
+    let fmap = filetree.create();
 
-    let excluded_path = dir.join("test_repo/excluded_path");
-    let not_excluded_glob = dir.join("test_repo/.excluded_glob");
-    let not_excluded_path = dir.join("test_repo/not_excluded_path");
+    let dir = fmap.get("__workspace").unwrap();
 
-    unzip(&zip, workspace.path()).unwrap();
+    let excluded_path = dir.join("excluded_path");
+    let not_excluded_glob = dir.join(".excluded_glob");
+    let not_excluded_path = dir.join("not_excluded_path");
 
     TMBliss::run(Command::Run {
         path: vec![dir.to_string_lossy().into_owned()],

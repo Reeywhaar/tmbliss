@@ -35,25 +35,24 @@ impl RecursiveDirectoryIterator<'_> {
 
 #[cfg(test)]
 mod tests {
-    use std::{cell::RefCell, env::current_dir, rc::Rc};
+    use std::{cell::RefCell, rc::Rc};
 
-    use crate::test_utils::{unzip, TestDir};
+    use crate::filetree::FileTree;
 
     use super::*;
 
     #[test]
     fn it_works_recursively() {
-        let workspace = TestDir::new();
+        let filetree = FileTree::new_test_repo();
 
-        let zip = current_dir().unwrap().join("test_assets/test_dir.zip");
-        let dir = workspace.path().join("test_dir/test_repo");
+        let fmap = filetree.create();
 
-        unzip(&zip, workspace.path()).unwrap();
+        let dir = fmap.get("__workspace").unwrap();
 
         let paths = Rc::new(RefCell::new(Vec::<PathBuf>::new()));
 
         let iterator = RecursiveDirectoryIterator {
-            path: &dir,
+            path: dir,
             op: &|path| {
                 let paths = paths.clone();
                 let mut paths = paths.try_borrow_mut().unwrap();

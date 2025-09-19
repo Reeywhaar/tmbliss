@@ -2,9 +2,6 @@ use std::ffi::OsStr;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
-#[cfg(test)]
-pub mod test_utils;
-
 mod args;
 mod conf;
 mod constants;
@@ -13,6 +10,11 @@ mod git;
 mod logger;
 mod recursive_directory_iterator;
 mod time_machine;
+
+#[cfg(test)]
+pub mod filetree;
+#[cfg(test)]
+pub mod test_utils;
 
 use std::collections::HashSet;
 use std::path::Path;

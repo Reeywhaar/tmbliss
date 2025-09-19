@@ -4,7 +4,6 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::Result;
 use uuid::Uuid;
 
 pub struct TestDir {
@@ -37,13 +36,4 @@ impl Drop for TestDir {
     fn drop(&mut self) {
         fs::remove_dir_all(&self.path).unwrap();
     }
-}
-
-pub fn unzip(file: &Path, dir: &Path) -> Result<()> {
-    std::process::Command::new("unzip")
-        .arg(file)
-        .arg("-d")
-        .arg(dir)
-        .output()?;
-    Ok(())
 }

@@ -64,18 +64,17 @@ impl Git {
 mod tests {
     use std::env::current_dir;
 
-    use crate::test_utils::{unzip, TestDir};
+    use crate::filetree::FileTree;
 
     use super::*;
 
     #[test]
     fn it_lists_ignored_files() {
-        let workspace = TestDir::new();
+        let filetree = FileTree::new_test_repo();
 
-        let zip = current_dir().unwrap().join("test_assets/test_dir.zip");
-        let dir = workspace.join("test_dir/test_repo");
+        let fmap = filetree.create();
 
-        unzip(&zip, workspace.path()).unwrap();
+        let dir = fmap.get("__workspace").unwrap();
 
         let git = Git { path: dir.clone() };
 

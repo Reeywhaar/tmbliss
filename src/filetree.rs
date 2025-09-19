@@ -9,10 +9,11 @@ use std::{
 };
 
 use anyhow::Context;
-use tmbliss::TimeMachine;
 use uuid::Uuid;
 
-static TMBLISS_FILE: &str = ".tmbliss";
+use crate::TimeMachine;
+
+const TMBLISS_FILE: &str = ".tmbliss";
 
 pub enum FileTreeItem {
     Directory {
@@ -58,6 +59,67 @@ impl FileTree {
                 .to_path_buf(),
             items,
         }
+    }
+
+    pub fn new_test_repo() -> Self {
+        FileTree::new(vec![
+            FileTreeItem::File {
+                key: ".excluded_glob".to_string(),
+                name: ".excluded_glob".to_string(),
+                is_excluded: false,
+            },
+            FileTreeItem::File {
+                key: "path_that_should_be_excluded.txt".to_string(),
+                name: "path_that_should_be_excluded.txt".to_string(),
+                is_excluded: false,
+            },
+            FileTreeItem::Directory {
+                key: "not_excluded_path".to_string(),
+                name: "not_excluded_path".to_string(),
+                is_excluded: false,
+            },
+            FileTreeItem::File {
+                key: "not_excluded_path/file.txt".to_string(),
+                name: "not_excluded_path/file.txt".to_string(),
+                is_excluded: false,
+            },
+            FileTreeItem::Directory {
+                key: "excluded_path".to_string(),
+                name: "excluded_path".to_string(),
+                is_excluded: false,
+            },
+            FileTreeItem::File {
+                key: "excluded_path/file.txt".to_string(),
+                name: "excluded_path/file.txt".to_string(),
+                is_excluded: false,
+            },
+            FileTreeItem::File {
+                key: "nested_dir/excluded_file.txt".to_string(),
+                name: "nested_dir/excluded_file.txt".to_string(),
+                is_excluded: false,
+            },
+            FileTreeItem::File {
+                key: "nested_dir/included_file.txt".to_string(),
+                name: "nested_dir/included_file.txt".to_string(),
+                is_excluded: false,
+            },
+            FileTreeItem::File {
+                key: "nested_dir_with_single_file/excluded_file.txt".to_string(),
+                name: "nested_dir_with_single_file/excluded_file.txt".to_string(),
+                is_excluded: false,
+            },
+            FileTreeItem::Gitignore {
+                key: "gitignore".to_string(),
+                path: "".to_string(),
+                patterns: vec![
+                    "/excluded_path".to_string(),
+                    "/not_excluded_path".to_string(),
+                    ".excluded_glob".to_string(),
+                    "/nested_dir/excluded_file.txt".to_string(),
+                    "/nested_dir_with_single_file/excluded_file.txt".to_string(),
+                ],
+            },
+        ])
     }
 
     pub fn create(&self) -> HashMap<String, PathBuf> {
