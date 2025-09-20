@@ -23,3 +23,6 @@ tmbliss run --path ~/Dev --allowlist-glob "**/.env" --dry-run
 ```
 
 Every option can be seen in [Cli Documentation](./cli.md)
+
+## .tmbliss file
+You can create `.tmbliss` file, that acts as `.gitignore` in reverse. You can declare globs to be force included into TimeMachine backup even if it is defined in `.gitignore`. Kinda same as `--allowlist-glob` but per directory
