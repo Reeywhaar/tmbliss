@@ -78,6 +78,7 @@ mod tests {
         let fmap = filetree.create();
 
         let dir = fmap.get("__workspace").unwrap();
+        assert_eq!(dir.read_dir().unwrap().count(), 8);
 
         let git = Git { path: dir.clone() };
 
