@@ -17,10 +17,13 @@ impl Git {
         }
 
         let mut gitignore_builder = ignore::gitignore::GitignoreBuilder::new(&self.path);
-        gitignore_builder.add(self.path.join(".gitignore"));
+        let err = gitignore_builder.add(self.path.join(".gitignore"));
+        if let Some(err) = err {
+            return Err(err.into());
+        }
         let gitignore = gitignore_builder.build_global();
-        if gitignore.1.is_some() {
-            return Err(anyhow::anyhow!(gitignore.1.unwrap()));
+        if let Some(err) = gitignore.1 {
+            return Err(err.into());
         }
         let gitignore = gitignore.0;
 

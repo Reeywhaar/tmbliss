@@ -55,6 +55,8 @@ impl FileTree {
     pub fn new(items: Vec<FileTreeItem>) -> Self {
         Self {
             path: env::temp_dir()
+                .canonicalize()
+                .unwrap()
                 .join(format!("tmbliss_test_workspace_{}", Uuid::new_v4()))
                 .to_path_buf(),
             items,
