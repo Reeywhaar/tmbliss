@@ -4,6 +4,7 @@ use std::{
 };
 
 use anyhow::Result;
+use ignore::gitignore::{gitconfig_excludes_path, Gitignore, GitignoreBuilder};
 
 pub struct Git {
     pub path: PathBuf,
@@ -16,24 +17,24 @@ impl Git {
             return Err(anyhow::anyhow!("Path is not a directory"));
         }
 
-        let mut gitignore_builder = ignore::gitignore::GitignoreBuilder::new(&self.path);
+        let mut gitignore_builder = GitignoreBuilder::new(&self.path);
+        if let Some(gitconfig_path) = gitconfig_excludes_path() {
+            if gitconfig_path.exists() {
+                let err = gitignore_builder.add(gitconfig_path);
+                if let Some(err) = err {
+                    return Err(err.into());
+                }
+            }
+        }
         let err = gitignore_builder.add(self.path.join(".gitignore"));
         if let Some(err) = err {
             return Err(err.into());
         }
-        let gitignore = gitignore_builder.build_global();
-        if let Some(err) = gitignore.1 {
-            return Err(err.into());
-        }
-        let gitignore = gitignore.0;
+        let gitignore = gitignore_builder.build()?;
 
         let mut ignored: Vec<PathBuf> = vec![];
 
-        fn visitor(
-            path: &Path,
-            gitignore: &ignore::gitignore::Gitignore,
-            ignored: &mut Vec<PathBuf>,
-        ) -> Result<()> {
+        fn visitor(path: &Path, gitignore: &Gitignore, ignored: &mut Vec<PathBuf>) -> Result<()> {
             let is_dir = path.is_dir();
             if path.ends_with(".git") {
                 return Ok(());
