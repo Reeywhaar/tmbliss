@@ -63,6 +63,6 @@ mod tests {
 
         iterator.iterate().unwrap();
 
-        assert_eq!(paths.clone().try_borrow().unwrap().len(), 38);
+        assert_eq!(paths.clone().try_borrow().unwrap().len(), 42);
     }
 }

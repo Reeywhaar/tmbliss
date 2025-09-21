@@ -121,6 +121,26 @@ impl FileTree {
                     "/nested_dir_with_single_file/excluded_file.txt".to_string(),
                 ],
             },
+            FileTreeItem::Directory {
+                key: "directory_with_subgitignore".to_string(),
+                name: "directory_with_subgitignore".to_string(),
+                is_excluded: false,
+            },
+            FileTreeItem::File {
+                key: "directory_with_subgitignore/included_file.txt".to_string(),
+                name: "directory_with_subgitignore/included_file.txt".to_string(),
+                is_excluded: false,
+            },
+            FileTreeItem::File {
+                key: "directory_with_subgitignore/subignore.txt".to_string(),
+                name: "directory_with_subgitignore/subignore.txt".to_string(),
+                is_excluded: false,
+            },
+            FileTreeItem::Gitignore {
+                key: "sub_gitignore".to_string(),
+                path: "directory_with_subgitignore".to_string(),
+                patterns: vec!["subignore.txt".to_string()],
+            },
         ])
     }
 

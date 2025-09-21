@@ -4,7 +4,7 @@ use std::{
 };
 
 use anyhow::Result;
-use ignore::gitignore::{gitconfig_excludes_path, Gitignore, GitignoreBuilder};
+use ignore::gitignore::{gitconfig_excludes_path, GitignoreBuilder};
 
 pub struct Git {
     pub path: PathBuf,
@@ -26,19 +26,28 @@ impl Git {
                 }
             }
         }
-        let err = gitignore_builder.add(self.path.join(".gitignore"));
-        if let Some(err) = err {
-            return Err(err.into());
-        }
-        let gitignore = gitignore_builder.build()?;
 
         let mut ignored: Vec<PathBuf> = vec![];
 
-        fn visitor(path: &Path, gitignore: &Gitignore, ignored: &mut Vec<PathBuf>) -> Result<()> {
-            let is_dir = path.is_dir();
+        fn visitor(
+            path: &Path,
+            gitignore_builder: &GitignoreBuilder,
+            ignored: &mut Vec<PathBuf>,
+        ) -> Result<()> {
             if path.ends_with(".git") {
                 return Ok(());
             }
+
+            let is_dir = path.is_dir();
+            let mut gitignore_builder = gitignore_builder.clone();
+            let gitignore_file = path.join(".gitignore");
+            if gitignore_file.exists() {
+                let err = gitignore_builder.add(path.join(".gitignore"));
+                if let Some(err) = err {
+                    return Err(err.into());
+                }
+            }
+            let gitignore = gitignore_builder.build()?;
             if gitignore.matched(path, is_dir).is_ignore() {
                 ignored.push(path.canonicalize()?);
                 return Ok(());
@@ -46,13 +55,13 @@ impl Git {
             if is_dir {
                 for entry in fs::read_dir(path)? {
                     let entry = entry?;
-                    visitor(&entry.path(), gitignore, ignored)?;
+                    visitor(&entry.path(), &gitignore_builder, ignored)?;
                 }
             }
             Ok(())
         }
 
-        visitor(&self.path, &gitignore, &mut ignored)?;
+        visitor(&self.path, &gitignore_builder, &mut ignored)?;
 
         ignored.sort();
         Ok(ignored)
@@ -79,7 +88,7 @@ mod tests {
         let fmap = filetree.create();
 
         let dir = fmap.get("__workspace").unwrap();
-        assert_eq!(dir.read_dir().unwrap().count(), 8);
+        assert_eq!(dir.read_dir().unwrap().count(), 9);
 
         let git = Git { path: dir.clone() };
 
@@ -92,6 +101,7 @@ mod tests {
             dir.join("not_excluded_path"),
             dir.join("nested_dir/excluded_file.txt"),
             dir.join("nested_dir_with_single_file/excluded_file.txt"),
+            dir.join("directory_with_subgitignore/subignore.txt"),
         ]
         .map(|p| p.canonicalize().unwrap())
         .to_vec();
