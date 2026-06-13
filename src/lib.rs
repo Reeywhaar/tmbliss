@@ -351,7 +351,9 @@ impl TMBliss {
         };
 
         for item in excludes.clone() {
-            let excluded = excluder(&item) || parents(&item).iter().any(|p| excluder(p));
+            let excluded = excluder(&item)
+                || parents(&item).iter().any(|p| excluder(p))
+                || Self::is_protected_by_ancestor_tmbliss(&item, path);
             if excluded {
                 continue;
             };
@@ -430,7 +432,36 @@ impl TMBliss {
         root.eq(&child) || (child.starts_with(&root) && !root.starts_with(&child))
     }
 
-    // Reads .tmbliss file in the given directory and returns a Vec of globs (ignores comments and empty lines)
+    /// Reads .tmbliss file in the given directory and returns a Vec of globs (ignores comments and empty lines)
+    ///
+    /// Check if `item` is protected by a `.tmbliss` file in any intermediate
+    /// directory strictly between `root` and `item.parent()`. The `root`'s own
+    /// `.tmbliss` is already handled by `effective_skip_glob`.
+    fn is_protected_by_ancestor_tmbliss(item: &Path, root: &Path) -> bool {
+        let item_parent = match item.parent() {
+            Some(p) if p != root => p,
+            _ => return false,
+        };
+        let mut dir = item_parent;
+        loop {
+            let globs = Self::read_tmbliss_globs(dir);
+            for s in &globs {
+                let stripped = s.strip_prefix('/').unwrap_or(s.as_str());
+                let pattern = dir.join(stripped).to_string_lossy().to_string();
+                if glob_match(&pattern, &item.to_string_lossy()) {
+                    return true;
+                }
+            }
+            match dir.parent() {
+                Some(parent) if parent != root && dir.starts_with(root) => {
+                    dir = parent;
+                }
+                _ => break,
+            }
+        }
+        false
+    }
+
     fn read_tmbliss_globs(dir: &Path) -> Vec<String> {
         let tmbliss_path = dir.join(TMBLISS_FILE);
         let file = File::open(&tmbliss_path);

@@ -220,11 +220,10 @@ impl FileTree {
                     gitignore.write_all(b"\n").unwrap();
                 }
                 FileTreeItem::TmBliss { patterns, .. } => {
-                    let tmbliss_path = self.path.join(TMBLISS_FILE);
-                    let mut tmbliss = fs::File::create(&tmbliss_path).unwrap();
+                    let mut tmbliss = fs::File::create(&item_path).unwrap();
                     let mut perms = tmbliss.metadata().unwrap().permissions();
                     perms.set_mode(0o777);
-                    fs::set_permissions(&tmbliss_path, perms).unwrap();
+                    fs::set_permissions(&item_path, perms).unwrap();
 
                     let content = patterns.join("\n");
                     tmbliss.write_all(content.as_bytes()).unwrap();

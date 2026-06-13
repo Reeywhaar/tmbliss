@@ -276,3 +276,138 @@ fn test_reset() {
     assert!(TimeMachine::is_excluded(&not_excluded_glob).unwrap());
     assert!(TimeMachine::is_excluded(&not_excluded_path).unwrap());
 }
+
+#[test]
+fn test_conf_command_respects_tmbliss() {
+    use std::fs;
+
+    let tree = FileTree::new(vec![
+        FileTreeItem::Gitignore {
+            key: "gitignore".to_string(),
+            path: "".to_string(),
+            patterns: vec!["target/".to_string(), "secret.txt".to_string()],
+        },
+        FileTreeItem::TmBliss {
+            key: "tmbliss".to_string(),
+            path: "".to_string(),
+            patterns: vec!["secret.txt".to_string()],
+        },
+        FileTreeItem::Directory {
+            key: "target".to_string(),
+            name: "target".to_string(),
+            is_excluded: false,
+        },
+        FileTreeItem::File {
+            key: "target/artifact".to_string(),
+            name: "target/artifact.bin".to_string(),
+            is_excluded: false,
+        },
+        FileTreeItem::File {
+            key: "secret".to_string(),
+            name: "secret.txt".to_string(),
+            is_excluded: false,
+        },
+    ]);
+
+    let hmap = tree.create();
+    let workspace = hmap.get("__workspace").unwrap();
+
+    let config_path = workspace.join("tmbliss.conf.json");
+    fs::write(
+        &config_path,
+        format!(
+            r#"{{"paths": ["{path}"], "dry_run": false}}"#,
+            path = workspace.to_string_lossy().replace('\\', "/")
+        ),
+    )
+    .unwrap();
+
+    TMBliss::run(Command::Conf {
+        path: config_path.to_string_lossy().to_string(),
+        dry_run: None,
+    })
+    .unwrap();
+
+    assert!(
+        TimeMachine::is_excluded_deep(hmap.get("target").unwrap()).unwrap(),
+        "target/ should be excluded from Time Machine"
+    );
+    assert!(
+        !TimeMachine::is_excluded_deep(hmap.get("secret").unwrap()).unwrap(),
+        "secret.txt should not be excluded — it is protected by .tmbliss"
+    );
+}
+
+/// Regression test: when the conf `paths` is a parent of the repo, gitignored
+/// items deep in the tree were processed before the subdirectory's `.tmbliss`
+/// was read, so the protection was silently bypassed.
+#[test]
+fn test_tmbliss_protects_items_discovered_from_parent_path() {
+    use std::fs;
+
+    // Layout:
+    //   parent/
+    //     project/
+    //       .gitignore  (ignores "backup")
+    //       .tmbliss    (protects "backup")
+    //       backup/
+    //         artifact.bin
+    //       src/
+    //         main.rs
+    //
+    // conf.paths = [parent/]
+    // Expected: backup is NOT excluded from TM (protected by .tmbliss)
+    //           src/main.rs is NOT gitignored, so also not excluded
+
+    let tree = FileTree::new(vec![
+        FileTreeItem::Gitignore {
+            key: "gitignore".to_string(),
+            path: "project".to_string(),
+            patterns: vec!["backup".to_string()],
+        },
+        FileTreeItem::TmBliss {
+            key: "tmbliss".to_string(),
+            path: "project".to_string(),
+            patterns: vec!["backup".to_string()],
+        },
+        FileTreeItem::Directory {
+            key: "project/backup".to_string(),
+            name: "project/backup".to_string(),
+            is_excluded: false,
+        },
+        FileTreeItem::File {
+            key: "project/backup/artifact".to_string(),
+            name: "project/backup/artifact.bin".to_string(),
+            is_excluded: false,
+        },
+        FileTreeItem::File {
+            key: "project/src/main".to_string(),
+            name: "project/src/main.rs".to_string(),
+            is_excluded: false,
+        },
+    ]);
+
+    let hmap = tree.create();
+    let workspace = hmap.get("__workspace").unwrap();
+
+    let config_path = workspace.join("tmbliss.conf.json");
+    fs::write(
+        &config_path,
+        format!(
+            r#"{{"paths": ["{path}"], "dry_run": false}}"#,
+            path = workspace.to_string_lossy().replace('\\', "/")
+        ),
+    )
+    .unwrap();
+
+    TMBliss::run(Command::Conf {
+        path: config_path.to_string_lossy().to_string(),
+        dry_run: None,
+    })
+    .unwrap();
+
+    assert!(
+        !TimeMachine::is_excluded_deep(hmap.get("project/backup").unwrap()).unwrap(),
+        "project/backup should not be excluded — it is protected by project/.tmbliss"
+    );
+}
