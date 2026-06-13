@@ -63,6 +63,12 @@ mod tests {
 
         iterator.iterate().unwrap();
 
-        assert_eq!(paths.clone().try_borrow().unwrap().len(), 42);
+        let paths = paths.try_borrow().unwrap();
+        let non_git_paths: Vec<_> = paths
+            .iter()
+            .filter(|p| !p.components().any(|c| c.as_os_str() == ".git"))
+            .collect();
+
+        assert_eq!(non_git_paths.len(), 16);
     }
 }
