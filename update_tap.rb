@@ -1,18 +1,16 @@
 def main
-  file = ARGV[0]
+  output_file = ARGV[0]
   version = ARGV[1]
   sha = ARGV[2]
   url = "https://github.com/Reeywhaar/tmbliss/releases/download/v#{version}/homebrew.zip"
 
-  content = File.read(file)
-  content = content.gsub(/# url-placeholder\n.*$/, "# url-placeholder\n  url \"#{url}\"")
-  content = content.gsub(/# version-placeholder\n.*$/, "# version-placeholder\n  version \"#{version}\"")
-  content = content.gsub(/# sha256-placeholder\n.*$/, "# sha256-placeholder\n  sha256 \"#{sha}\"")
-  content = content.gsub(/^\s+revision.*$/, "")
+  template_path = File.join(File.dirname(__FILE__), "tmbliss.rb.template")
+  content = File.read(template_path)
+  content = content.gsub("{{URL}}", url)
+  content = content.gsub("{{VERSION}}", version)
+  content = content.gsub("{{SHA256}}", sha)
 
-  File.open(file, "w") do |f|
-    f.write(content)
-  end
+  File.write(output_file, content)
 end
 
 main
