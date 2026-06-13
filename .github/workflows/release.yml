@@ -17,12 +17,10 @@ jobs:
     name: Build ${{ matrix.toolchain.name }}
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
-          target: ${{ matrix.toolchain.arch }}
-          override: true
+          targets: ${{ matrix.toolchain.arch }}
       - uses: Swatinem/rust-cache@v2
         with:
           prefix-key: ${{ matrix.toolchain.arch }}
@@ -57,10 +55,8 @@ jobs:
           NOTARY_TOOL_PASS: ${{ secrets.NOTARY_TOOL_PASS }}
           TEAM_ID: ${{ secrets.TEAM_ID }}
 
-      - uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --all-features --target ${{ matrix.toolchain.arch }}
+      - name: Build
+        run: cargo build --release --all-features --target ${{ matrix.toolchain.arch }}
 
       - name: Create signed binary
         run: |
@@ -83,7 +79,7 @@ jobs:
       - name: Create zip
         run: zip -qq -r ${{ matrix.toolchain.name }}.zip ${{ matrix.toolchain.name }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.toolchain.name }}
           path: ${{ matrix.toolchain.name }}.zip
@@ -93,8 +89,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v8
         with:
           path: ~/artifacts
       - name: Move artifacts
@@ -107,12 +103,12 @@ jobs:
           mv silicon homebrew/ && \
           mv intel homebrew/ && \
           zip -qq -r homebrew.zip homebrew
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: homebrew
           path: homebrew.zip
       - name: "Create Release"
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -126,8 +122,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: release
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v8
         with:
           name: homebrew
       - name: Set git identity
@@ -142,7 +138,7 @@ jobs:
         run: |
           VERSION=$(cat Cargo.toml | grep -o 'version = ".*"' | head -n 1 | cut -c 12- | rev | cut -c2- | rev) && \
           echo "TMBLISS_VERSION=$(echo $VERSION)" >> $GITHUB_ENV
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v6
         with:
           ref: main
           path: tap
