@@ -1,6 +1,6 @@
 [package]
 name = "tmbliss"
-version = "0.0.1-beta.16"
+version = "0.0.1-beta.17"
 edition = "2021"
 
 [[bin]]
