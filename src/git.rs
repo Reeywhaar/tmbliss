@@ -4,7 +4,7 @@ use std::{
 };
 
 use anyhow::Result;
-use ignore::gitignore::{gitconfig_excludes_path, GitignoreBuilder};
+use ignore::gitignore::{gitconfig_excludes_path, Gitignore, GitignoreBuilder};
 
 pub struct Git {
     pub path: PathBuf,
@@ -31,6 +31,7 @@ impl Git {
 
         fn visitor(
             path: &Path,
+            gitignore: &Gitignore,
             gitignore_builder: &GitignoreBuilder,
             ignored: &mut Vec<PathBuf>,
         ) -> Result<()> {
@@ -39,29 +40,35 @@ impl Git {
             }
 
             let is_dir = path.is_dir();
-            let mut gitignore_builder = gitignore_builder.clone();
-            let gitignore_file = path.join(".gitignore");
-            if gitignore_file.exists() {
-                let err = gitignore_builder.add(path.join(".gitignore"));
-                if let Some(err) = err {
-                    return Err(err.into());
-                }
-            }
-            let gitignore = gitignore_builder.build()?;
             if gitignore.matched(path, is_dir).is_ignore() {
                 ignored.push(path.canonicalize()?);
                 return Ok(());
             }
+
             if is_dir {
-                for entry in fs::read_dir(path)? {
-                    let entry = entry?;
-                    visitor(&entry.path(), &gitignore_builder, ignored)?;
+                let gitignore_file = path.join(".gitignore");
+                if gitignore_file.exists() {
+                    let mut gitignore_builder = gitignore_builder.clone();
+                    if let Some(err) = gitignore_builder.add(&gitignore_file) {
+                        return Err(err.into());
+                    }
+                    let gitignore = gitignore_builder.build()?;
+                    for entry in fs::read_dir(path)? {
+                        let entry = entry?;
+                        visitor(&entry.path(), &gitignore, &gitignore_builder, ignored)?;
+                    }
+                } else {
+                    for entry in fs::read_dir(path)? {
+                        let entry = entry?;
+                        visitor(&entry.path(), gitignore, gitignore_builder, ignored)?;
+                    }
                 }
             }
             Ok(())
         }
 
-        visitor(&self.path, &gitignore_builder, &mut ignored)?;
+        let gitignore = gitignore_builder.build()?;
+        visitor(&self.path, &gitignore, &gitignore_builder, &mut ignored)?;
 
         ignored.sort();
         Ok(ignored)
