@@ -411,3 +411,61 @@ fn test_tmbliss_protects_items_discovered_from_parent_path() {
         "project/backup should not be excluded — it is protected by project/.tmbliss"
     );
 }
+
+/// Regression test: `.tmbliss` follows `.gitignore` syntax, so a directory
+/// entry may carry a trailing slash. The path git reports has none, so the
+/// slash must not prevent the directory (and its contents) from being
+/// protected.
+#[test]
+fn test_tmbliss_trailing_slash_protects_directory() {
+    let tree = FileTree::new(vec![
+        FileTreeItem::Gitignore {
+            key: "gitignore".to_string(),
+            path: "".to_string(),
+            patterns: vec!["screenshots".to_string()],
+        },
+        FileTreeItem::TmBliss {
+            key: "tmbliss".to_string(),
+            path: "".to_string(),
+            patterns: vec!["screenshots/".to_string()],
+        },
+        FileTreeItem::Directory {
+            key: "screenshots".to_string(),
+            name: "screenshots".to_string(),
+            is_excluded: false,
+        },
+        FileTreeItem::File {
+            key: "screenshots/shot".to_string(),
+            name: "screenshots/shot.png".to_string(),
+            is_excluded: false,
+        },
+    ]);
+
+    let hmap = tree.create();
+
+    let command = Command::Run {
+        path: vec![hmap
+            .get("__workspace")
+            .unwrap()
+            .to_string_lossy()
+            .to_string()],
+        dry_run: false,
+        allowlist_glob: vec![],
+        allowlist_path: vec![],
+        skip_glob: vec![],
+        skip_path: vec![],
+        skip_errors: false,
+        exclude_path: vec![],
+    };
+    let result = TMBliss::run(command);
+    result.unwrap();
+
+    assert!(
+        !TimeMachine::is_excluded_deep(hmap.get("screenshots").unwrap()).unwrap(),
+        "screenshots directory should not be excluded — it is protected by .tmbliss"
+    );
+    assert!(
+        !TimeMachine::is_excluded_deep(hmap.get("screenshots/shot").unwrap()).unwrap(),
+        "screenshots/shot.png should not be excluded — it is protected by .tmbliss"
+    );
+}

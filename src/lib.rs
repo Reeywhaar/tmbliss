@@ -21,7 +21,7 @@ use std::path::Path;
 use std::rc::Rc;
 use std::{cell::RefCell, path::PathBuf};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use glob_match::glob_match;
 use recursive_directory_iterator::RecursiveDirectoryIterator;
 
@@ -36,6 +36,20 @@ pub use crate::time_machine::{TimeMachine, TimeMachineError};
 pub struct TMBliss {}
 
 impl TMBliss {
+    fn tmbliss_patterns_for_dir(dir: &Path, raw: &str) -> Vec<String> {
+        let stripped = raw.strip_prefix('/').unwrap_or(raw);
+        // A trailing slash is idiomatic in .gitignore, and .tmbliss follows the
+        // same syntax, so drop it: the path git reports has no trailing slash.
+        let base = dir
+            .join(stripped)
+            .to_string_lossy()
+            .trim_end_matches('/')
+            .to_string();
+
+        // Match both the exact path and all descendants.
+        vec![base.clone(), format!("{base}/**")]
+    }
+
     pub fn run(command: Command) -> Result<()> {
         match command {
             Command::Run {
@@ -280,16 +294,8 @@ impl TMBliss {
         let tmbliss_globs = Self::read_tmbliss_globs(path);
         let tmbliss_globs = tmbliss_globs
             .iter()
-            .map(|s| -> Result<String> {
-                let stripped = if s.starts_with("/") {
-                    s.strip_prefix("/")
-                        .ok_or_else(|| anyhow!("Failed to strip prefix from {}", s))?
-                } else {
-                    s.as_str()
-                };
-                Ok(path.join(stripped).to_string_lossy().to_string())
-            })
-            .collect::<Result<Vec<String>>>()?;
+            .flat_map(|s| Self::tmbliss_patterns_for_dir(path, s))
+            .collect::<Vec<String>>();
         effective_skip_glob.extend(tmbliss_globs);
         newconf.skip_glob = effective_skip_glob.clone();
 
@@ -446,9 +452,11 @@ impl TMBliss {
         loop {
             let globs = Self::read_tmbliss_globs(dir);
             for s in &globs {
-                let stripped = s.strip_prefix('/').unwrap_or(s.as_str());
-                let pattern = dir.join(stripped).to_string_lossy().to_string();
-                if glob_match(&pattern, &item.to_string_lossy()) {
+                let patterns = Self::tmbliss_patterns_for_dir(dir, s);
+                if patterns
+                    .iter()
+                    .any(|pattern| glob_match(pattern, &item.to_string_lossy()))
+                {
                     return true;
                 }
             }
@@ -481,5 +489,72 @@ impl TMBliss {
         } else {
             Vec::new()
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+
+    use super::TMBliss;
+    use crate::test_utils::TestDir;
+
+    #[test]
+    fn tmbliss_directory_pattern_matches_exact_and_descendants() {
+        let dir = TestDir::new();
+        let root = dir.path();
+
+        let patterns = TMBliss::tmbliss_patterns_for_dir(root, "/design");
+        let design = root.join("design").to_string_lossy().to_string();
+        let screenshot = root
+            .join("design/screenshots/shot.png")
+            .to_string_lossy()
+            .to_string();
+
+        assert!(
+            patterns
+                .iter()
+                .any(|pattern| glob_match::glob_match(pattern, &design.to_string())),
+            "Directory pattern should match the directory itself"
+        );
+        assert!(
+            patterns
+                .iter()
+                .any(|pattern| glob_match::glob_match(pattern, &screenshot.to_string())),
+            "Directory pattern should match descendants"
+        );
+    }
+
+    #[test]
+    fn tmbliss_directory_pattern_ignores_trailing_slash() {
+        let dir = TestDir::new();
+        let root = dir.path();
+
+        let patterns = TMBliss::tmbliss_patterns_for_dir(root, "screenshots/");
+        let screenshots = root.join("screenshots").to_string_lossy().to_string();
+
+        assert!(
+            patterns
+                .iter()
+                .any(|pattern| glob_match::glob_match(pattern, &screenshots)),
+            "Trailing slash should not prevent matching the directory itself"
+        );
+    }
+
+    #[test]
+    fn ancestor_tmbliss_protects_nested_path() {
+        let dir = TestDir::new();
+        let root = dir.path().join("project");
+        let screenshots = root.join("design/screenshots");
+        fs::create_dir_all(&screenshots).unwrap();
+
+        fs::write(root.join("design/.tmbliss"), "/screenshots\n").unwrap();
+
+        let item = screenshots.join("landing.png");
+
+        assert!(
+            TMBliss::is_protected_by_ancestor_tmbliss(&item, &root),
+            "design/screenshots should be protected by design/.tmbliss"
+        );
     }
 }
